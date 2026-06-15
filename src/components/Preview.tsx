@@ -116,18 +116,52 @@ function EmojiImg({ name, id, animated }: { name: string; id: string; animated?:
 
 type IPat = { re: RegExp; fn: (full: string, g1: string, g2: string) => React.ReactNode; terminal?: boolean };
 
+const TS_S = { background: 'rgba(88,101,242,.15)', color: '#c9cdfb', borderRadius: 3, padding: '1px 4px', cursor: 'default', fontSize: '.95em' } as const;
+
+function fmtTimestamp(ts: string, fmt?: string): string {
+  const d = new Date(Number(ts) * 1000);
+  const diff = Date.now() - Number(ts) * 1000;
+  const abs = Math.abs(diff); const past = diff > 0;
+  const rel = () => {
+    if (abs < 45000)      return past ? 'hace unos segundos' : 'en unos segundos';
+    if (abs < 2700000)    return (past ? 'hace ' : 'en ') + Math.round(abs/60000) + ' min';
+    if (abs < 79200000)   return (past ? 'hace ' : 'en ') + Math.round(abs/3600000) + ' h';
+    if (abs < 2592000000) return (past ? 'hace ' : 'en ') + Math.round(abs/86400000) + ' días';
+    return (past ? 'hace ' : 'en ') + Math.round(abs/2592000000) + ' meses';
+  };
+  switch (fmt) {
+    case 't': return d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+    case 'T': return d.toLocaleTimeString('es');
+    case 'd': return d.toLocaleDateString('es');
+    case 'D': return d.toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' });
+    case 'f': return d.toLocaleString('es', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    case 'F': return d.toLocaleString('es', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    case 'R': return rel();
+    default:  return d.toLocaleString('es', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+}
+
 const IPATS: IPat[] = [
+  // escape character  \* \_ etc.
+  { re: /\\([*_~|`\\>])/g,           fn: (_, c) => c, terminal: true },
   // inline code (terminal)
   { re: /`([^`\n]+)`/g,              fn: (_, c) => <code style={CO_S}>{c}</code>, terminal: true },
   // spoiler
   { re: /\|\|([^|]+)\|\|/g,          fn: (_, t) => <span style={{ background: '#111', color: 'transparent', borderRadius: 3, padding: '0 3px', userSelect: 'none' }} title={t}>▒▒▒</span>, terminal: true },
-  // bold+italic, bold, underline, italic, strikethrough
+  // bold+italic, bold, underline+bold+italic, underline+bold, underline+italic, underline, italic, strikethrough
   { re: /\*\*\*([^*\n]+)\*\*\*/g,    fn: (_, t) => <strong><em>{t}</em></strong> },
   { re: /\*\*([^*\n]+)\*\*/g,        fn: (_, t) => <strong>{t}</strong> },
+  { re: /__\*\*\*([^*_\n]+)\*\*\*__/g, fn: (_, t) => <u><strong><em>{t}</em></strong></u>, terminal: true },
+  { re: /__\*\*([^*_\n]+)\*\*__/g,   fn: (_, t) => <u><strong>{t}</strong></u>, terminal: true },
+  { re: /__\*([^*_\n]+)\*__/g,       fn: (_, t) => <u><em>{t}</em></u>, terminal: true },
   { re: /__([^_\n]+)__/g,            fn: (_, t) => <u>{t}</u> },
   { re: /\*([^*\n]+)\*/g,            fn: (_, t) => <em>{t}</em> },
   { re: /_([^_\n]+)_/g,              fn: (_, t) => <em>{t}</em> },
   { re: /~~([^~\n]+)~~/g,            fn: (_, t) => <span style={{ textDecoration: 'line-through', opacity: .65 }}>{t}</span> },
+  // Discord timestamps  <t:unix>  <t:unix:R>
+  { re: /<t:(\d+)(?::([tTdDfFR]))?>/g, fn: (_, ts, fmt) => <span style={TS_S}>🕐 {fmtTimestamp(ts, fmt)}</span>, terminal: true },
+  // slash command mentions  </cmd:id>  </cmd sub:id>
+  { re: /<\/([^:>]+):(\d+)>/g,       fn: (_, name) => <span style={M_S}>/{name}</span>, terminal: true },
   // Discord CDN custom emojis  <a:name:id>  <:name:id>
   { re: /<a:([^:>]+):(\d+)>/g,       fn: (_, name, id) => <EmojiImg name={name} id={id} animated />, terminal: true },
   { re: /<:([^:>]+):(\d+)>/g,        fn: (_, name, id) => <EmojiImg name={name} id={id} />, terminal: true },
