@@ -61,6 +61,23 @@ const CHILD_FACTORIES: Record<number, () => any> = {
 function validateNodes(nodes: any[]): string[] {
   const errors: string[] = [];
   function check(node: any) {
+    // Text: content required
+    if (node.type === 10 && !node.content?.trim()) {
+      errors.push('Hay un nodo de Texto vacío — escribe algo o elimínalo.');
+    }
+    // Thumbnail: media.url required
+    if (node.type === 11 && !node.media?.url?.trim()) {
+      errors.push('Hay un Thumbnail sin URL — agrega una URL de imagen o elimínalo.');
+    }
+    // Gallery: each item needs media.url
+    if (node.type === 12) {
+      (node.items ?? []).forEach((item: any, idx: number) => {
+        if (!item.media?.url?.trim()) {
+          errors.push(`Gallery: el item ${idx + 1} no tiene URL de imagen.`);
+        }
+      });
+    }
+    // Action Row
     if (node.type === 1) {
       const comps: any[] = node.components ?? [];
       if (!comps.length) { errors.push('Hay un Action Row vacío — agrega al menos 1 botón o select menu.'); return; }
@@ -84,6 +101,7 @@ function validateNodes(nodes: any[]): string[] {
       });
     }
     if (Array.isArray(node.components)) node.components.forEach(check);
+    if (node.accessory) check(node.accessory);
   }
   nodes.forEach(check);
   return [...new Set(errors)];
@@ -345,7 +363,15 @@ export default function Builder() {
       }
       const data = await res.json() as any;
       if (!res.ok) {
-        const msg = `Error ${res.status}: ${data.message ?? data.error ?? 'Error'}`;
+        const errText = data.message ?? data.error ?? 'Error de Discord';
+        const errCode = data.code ? ` (code: ${data.code})` : '';
+        let fieldHint = '';
+        if (data.errors) {
+          const flat = JSON.stringify(data.errors);
+          const m = flat.match(/"message":"([^"]+)"/);
+          if (m) fieldHint = ` — ${m[1]}`;
+        }
+        const msg = `Error ${res.status}: ${errText}${errCode}${fieldHint}`;
         setStatus({ msg, kind: 'err' }); addToast(msg, 'err');
       } else {
         setStatus({ msg: `✓ Mensaje editado (ID: ${data.id})`, kind: 'ok' });
@@ -428,7 +454,14 @@ export default function Builder() {
       if (!res.ok) {
         const errText = data.message ?? data.error ?? 'Error de Discord';
         const errCode = data.code ? ` (code: ${data.code})` : '';
-        const msg = `Error ${res.status}: ${errText}${errCode}`;
+        // Extract first field-level error from Discord's error object
+        let fieldHint = '';
+        if (data.errors) {
+          const flat = JSON.stringify(data.errors);
+          const m = flat.match(/"message":"([^"]+)"/);
+          if (m) fieldHint = ` — ${m[1]}`;
+        }
+        const msg = `Error ${res.status}: ${errText}${errCode}${fieldHint}`;
         setStatus({ msg, kind: 'err' }); addToast(msg, 'err');
       } else {
         setStatus({ msg: `✓ Enviado (ID: ${data.id})`, kind: 'ok' });
