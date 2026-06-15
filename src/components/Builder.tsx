@@ -17,7 +17,7 @@ import ChangelogModal from './ChangelogModal';
 import {
   IcSend, IcTrash, IcDownload, IcBell, IcBellOff,
   IcBox, IcGrid, IcText, IcLayout, IcImages, IcMinus,
-  IcHelpCircle, IcEmbed, IcClock, IcAlertTriangle,
+  IcHelpCircle, IcEmbed, IcClock, IcAlertTriangle, Fi,
 } from './Icons';
 
 // ── defaults ──────────────────────────────────────────────────────────────────
@@ -474,7 +474,7 @@ export default function Builder() {
                   )}
                 </div>
                 <div className="security-tip">
-                  🔒 Tu credencial se guarda <strong>localmente en tu navegador</strong> (localStorage) y se envía directamente a Discord — nunca a servidores externos. Esta app corre en local.
+                  <Fi name="lock" /> Tu credencial se guarda <strong>localmente en tu navegador</strong> (localStorage) y se envía directamente a Discord — nunca a servidores externos. Esta app corre en local.
                 </div>
               </div>
             </div>
@@ -514,7 +514,7 @@ export default function Builder() {
                   El soporte para <strong style={{ color: '#dbdee1' }}>embeds normales</strong> (tipo 0, con campos, imagen, footer, author…) está en desarrollo.
                 </div>
                 <div className="tutorial-tip">
-                  🔨 Por ahora usa <strong>Components V2</strong> (Containers, Secciones, Galerías, etc.) que ofrecen mucho más control visual.
+                  <Fi name="hammer" /> Por ahora usa <strong>Components V2</strong> (Containers, Secciones, Galerías, etc.) que ofrecen mucho más control visual.
                 </div>
               </div>
             </div>
@@ -550,7 +550,7 @@ export default function Builder() {
           <span className="badge-soon">Pronto</span>
         </button>
         <button className="btn-secondary" title="Changelog" onClick={() => setChangelogOpen(true)} style={{ padding: '6px 10px', fontSize: 13 }}>
-          📋
+          <Fi name="list" />
         </button>
         <button className="btn-secondary" title="Ver tutorial / info" onClick={() => setWelcomeOpen(true)} style={{ padding: '6px 10px' }}>
           <IcHelpCircle size={14} />
@@ -578,10 +578,10 @@ export default function Builder() {
             {/* Send mode toggle */}
             <div className="send-mode-toggle">
               <button className={`mode-btn ${sendMode === 'bot' ? 'active' : ''}`} onClick={() => handleSendMode('bot')}>
-                🤖 Bot Token
+                <Fi name="robot" style={{ marginRight: 5 }} /> Bot Token
               </button>
               <button className={`mode-btn ${sendMode === 'webhook' ? 'active' : ''}`} onClick={() => handleSendMode('webhook')}>
-                🔗 Webhook
+                <Fi name="link" style={{ marginRight: 5 }} /> Webhook
               </button>
             </div>
 
@@ -635,7 +635,7 @@ export default function Builder() {
 
           <div className="toolbar">
             <span className="toolbar-label">Agregar al root</span>
-            <button className="btn-secondary" onClick={() => addRoot(newContainer(), 'Container')} title="Container">📦 Container</button>
+            <button className="btn-secondary" onClick={() => addRoot(newContainer(), 'Container')} title="Container"><Fi name="box" /> Container</button>
             <button className="btn-secondary" onClick={() => addRoot(newActionRow(), 'Action Row')} title="Action Row"><IcGrid size={12} /> Row</button>
             <button className="btn-secondary" onClick={() => addRoot(newText(), 'Texto')} title="Texto"><IcText size={12} /> Texto</button>
             <button className="btn-secondary" onClick={() => addRoot(newSection(), 'Section')} title="Section"><IcLayout size={12} /> Section</button>
@@ -675,7 +675,7 @@ export default function Builder() {
       <div className="status-bar">
         <span className={`msg ${status?.kind ?? ''}`}>{status?.msg ?? 'Listo'}</span>
         <small style={{ background: sendMode === 'webhook' ? 'rgba(88,101,242,.15)' : 'transparent', padding: '1px 6px', borderRadius: 4 }}>
-          {sendMode === 'bot' ? '🤖 Bot' : '🔗 Webhook'}
+          {sendMode === 'bot' ? <><Fi name="robot" style={{ marginRight: 4 }} /> Bot</> : <><Fi name="link" style={{ marginRight: 4 }} /> Webhook</>}
         </small>
         <small>{state.nodes.length} componente(s)</small>
         <small>{state.allowedMentions ? <><IcBell size={11} /> Pings ON</> : <><IcBellOff size={11} /> Pings OFF</>}</small>

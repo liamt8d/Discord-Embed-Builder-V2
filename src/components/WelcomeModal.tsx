@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { IcBox, IcLayout, IcSend, IcText, IcHelpCircle, IcUser } from './Icons';
+import { IcBox, IcLayout, IcSend, IcText, IcHelpCircle, IcUser, Fi } from './Icons';
 
 interface Props { onClose: () => void }
 
@@ -23,14 +23,14 @@ function WelcomePage() {
           </div>
         </div>
         <div className="welcome-card-row">
-          <div className="welcome-card-icon">📧</div>
+          <div className="welcome-card-icon"><Fi name="envelope" /></div>
           <div>
             <div className="welcome-card-label">Contacto</div>
             <div className="welcome-card-value" style={{ fontSize: 12 }}>contact@liamt.xyz</div>
           </div>
         </div>
         <div className="welcome-card-row">
-          <div className="welcome-card-icon">🔖</div>
+          <div className="welcome-card-icon"><Fi name="bookmark" /></div>
           <div>
             <div className="welcome-card-label">Versión</div>
             <div className="welcome-card-value">1.1.0</div>
@@ -66,7 +66,7 @@ function Step1() {
           </div>
         ))}
       </div>
-      <div className="tutorial-tip">💡 Usa el <strong>"+"</strong> junto a un Container para agregar elementos dentro de él.</div>
+      <div className="tutorial-tip"><Fi name="bulb" /> Usa el <strong>"+"</strong> junto a un Container para agregar elementos dentro de él.</div>
     </div>
   );
 }
@@ -113,7 +113,7 @@ function Step3() {
           </div>
         ))}
       </div>
-      <div className="tutorial-tip">💡 El estado se guarda en la URL — puedes copiar el link para compartirlo.</div>
+      <div className="tutorial-tip"><Fi name="bulb" /> El estado se guarda en la URL — puedes copiar el link para compartirlo.</div>
     </div>
   );
 }
@@ -124,20 +124,20 @@ function Step4() {
       <div className="tutorial-step-badge"><IcSend size={12} /> Envío</div>
       <div className="tutorial-step-desc">Envía el mensaje usando <strong style={{ color: '#dbdee1' }}>Bot Token</strong> o <strong style={{ color: '#dbdee1' }}>Webhook</strong>.</div>
       <div className="tutorial-step-list">
-        {[
-          ['🤖 Bot Token', 'Token del bot + Channel ID. El bot publica el mensaje en el canal.'],
-          ['🔗 Webhook', 'Solo la URL del webhook. No necesitas un bot configurado.'],
+        {([
+          [<><Fi name="robot" style={{ marginRight: 4 }} />Bot Token</>, 'Token del bot + Channel ID. El bot publica el mensaje en el canal.'],
+          [<><Fi name="link" style={{ marginRight: 4 }} />Webhook</>, 'Solo la URL del webhook. No necesitas un bot configurado.'],
           ['Pings ON/OFF', 'Controla si las menciones (@usuario, @rol) generan notificaciones.'],
           ['Exportar JSON', 'Descarga el JSON para usarlo directamente con la API de Discord.'],
           ['▶ Enviar', 'Valida los componentes automáticamente antes de enviar.'],
-        ].map(([n, d]) => (
-          <div key={n} className="tutorial-step-item">
+        ] as [React.ReactNode, string][]).map(([n, d], i) => (
+          <div key={i} className="tutorial-step-item">
             <div className="tutorial-step-item-dot" />
             <span><strong style={{ color: '#dbdee1' }}>{n}</strong> — {d}</span>
           </div>
         ))}
       </div>
-      <div className="tutorial-tip">⚠️ Los Action Rows no pueden mezclar botones y select menus — el builder lo valida antes de enviar.</div>
+      <div className="tutorial-tip"><Fi name="triangle-warning" /> Los Action Rows no pueden mezclar botones y select menus — el builder lo valida antes de enviar.</div>
     </div>
   );
 }

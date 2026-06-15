@@ -1,4 +1,5 @@
 import React from 'react';
+import { Fi } from './Icons';
 
 interface Props { onClose: () => void }
 
@@ -36,7 +37,7 @@ export default function ChangelogModal({ onClose }: Props) {
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal" style={{ width: 520, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
         <div className="modal-header">
-          <div className="modal-header-icon" style={{ fontSize: 18 }}>📋</div>
+          <div className="modal-header-icon" style={{ fontSize: 18 }}><Fi name="list" /></div>
           <div className="modal-header-text">
             <h2>Changelog</h2>
             <p>Historial de versiones</p>

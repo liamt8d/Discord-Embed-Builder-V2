@@ -1,5 +1,9 @@
 import React from 'react';
 
+export const Fi = ({ name, style }: { name: string; style?: React.CSSProperties }) => (
+  <i className={`fi fi-sr-${name}`} style={{ fontSize: '1em', verticalAlign: 'middle', lineHeight: 1, ...style }} />
+);
+
 type P = { size?: number };
 
 const Svg = ({ size = 14, children }: { size?: number; children: React.ReactNode }) => (

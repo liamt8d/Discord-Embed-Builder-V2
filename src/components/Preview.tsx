@@ -251,7 +251,7 @@ function Sel({ node, children, block }: { node: any; children: React.ReactNode; 
 function PText({ node }: { node: any }) {
   return (
     <Sel node={node} block>
-      <div style={{ padding: '4px 14px' }}>{renderMarkdown(node.content ?? '')}</div>
+      <div style={{ padding: '4px 14px', wordBreak: 'break-word', overflowWrap: 'anywhere', minWidth: 0 }}>{renderMarkdown(node.content ?? '')}</div>
     </Sel>
   );
 }
@@ -292,7 +292,12 @@ const SEL_DEFAULTS: Record<number, string> = {
   3: 'Seleccionar…', 5: 'Seleccionar usuarios…',
   6: 'Seleccionar roles…', 7: 'Seleccionar usuarios o roles…', 8: 'Seleccionar canales…',
 };
-const SEL_BADGE: Record<number, string> = { 5: '👤', 6: '🎭', 7: '💬', 8: '#' };
+const SEL_BADGE: Record<number, React.ReactNode> = {
+  5: <i className="fi fi-sr-user" style={{ fontSize: '0.9em' }} />,
+  6: <i className="fi fi-sr-shield" style={{ fontSize: '0.9em' }} />,
+  7: <i className="fi fi-sr-comment" style={{ fontSize: '0.9em' }} />,
+  8: <span style={{ fontWeight: 700, fontSize: '0.85em' }}>#</span>,
+};
 const SEL_LABEL: Record<number, string> = { 5: 'Usuarios', 6: 'Roles', 7: 'Usuarios o roles', 8: 'Canales' };
 
 function SelectDropdown({ anchorRef, open, onClose, isText, opts, selected, onToggle, badge, node }: {
@@ -300,7 +305,7 @@ function SelectDropdown({ anchorRef, open, onClose, isText, opts, selected, onTo
   open: boolean; onClose: () => void;
   isText: boolean; opts: Array<{ label: string; value: string; description?: string }>;
   selected: string[]; onToggle: (v: string) => void;
-  badge?: string; node: any;
+  badge?: React.ReactNode; node: any;
 }) {
   const [rect, setRect] = React.useState<DOMRect | null>(null);
 
@@ -450,7 +455,7 @@ function PSection({ node }: { node: any }) {
   return (
     <Sel node={node} block>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '8px 14px' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: 1, minWidth: 0, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
           {text ? renderMarkdown(text.content ?? '') : <span style={{ color: '#5c5f66', fontStyle: 'italic', fontSize: 12 }}>Texto vacío</span>}
         </div>
         {acc && (
