@@ -5,6 +5,19 @@ interface Props { onClose: () => void }
 
 const CHANGELOG = [
   {
+    version: '1.2.0',
+    date: '2026-06-15',
+    changes: [
+      ['Multi-mensaje', 'Agregá hasta N mensajes independientes desde las tabs "Mensajes" del panel izquierdo. El botón Enviar los manda todos en secuencia.'],
+      ['Tabs de mensaje', 'Tabs Msg 1 / Msg 2 / … con indicador de componentes, botón + (verde) para agregar y ✕ (rojo) para eliminar el activo.'],
+      ['Exportar múltiple', 'Cuando hay más de un mensaje, Exportar genera un array de JSON objects listos para la API.'],
+      ['Límite de texto', 'Validación del total de caracteres por mensaje (límite Discord: 4000). Contador en tiempo real en el header (gris / amarillo / rojo).'],
+      ['Contador por nodo', 'El editor de texto muestra X / 4000 con borde de color al acercarse o superar el límite.'],
+      ['Fix Error 50035', 'Validación de thumbnails sin URL, gallery items sin URL y textos vacíos antes de enviar. El mensaje de error ahora muestra el campo específico que rechaza Discord.'],
+      ['Fix markdown en blockquotes', 'Los bloques >>> y > ahora renderizan markdown completo (bullets, -#, headings, bold, etc.) en el preview.'],
+    ],
+  },
+  {
     version: '1.1.1',
     date: '2026-06-15',
     changes: [

@@ -33,7 +33,7 @@ function WelcomePage() {
           <div className="welcome-card-icon"><Fi name="bookmark" /></div>
           <div>
             <div className="welcome-card-label">Versión</div>
-            <div className="welcome-card-value">1.1.1</div>
+            <div className="welcome-card-value">1.2.0</div>
           </div>
         </div>
       </div>
