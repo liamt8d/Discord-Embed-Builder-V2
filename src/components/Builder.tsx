@@ -61,9 +61,10 @@ const CHILD_FACTORIES: Record<number, () => any> = {
 function validateNodes(nodes: any[]): string[] {
   const errors: string[] = [];
   function check(node: any) {
-    // Text: content required
-    if (node.type === 10 && !node.content?.trim()) {
-      errors.push('Hay un nodo de Texto vacío — escribe algo o elimínalo.');
+    // Text: content required, max 4000 chars
+    if (node.type === 10) {
+      if (!node.content?.trim()) errors.push('Hay un nodo de Texto vacío — escribe algo o elimínalo.');
+      else if ((node.content ?? '').length > 4000) errors.push(`Texto demasiado largo (${(node.content ?? '').length} caracteres). Discord permite máximo 4000 por nodo de texto.`);
     }
     // Thumbnail: media.url required
     if (node.type === 11 && !node.media?.url?.trim()) {

@@ -16,11 +16,21 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 // ─── sub-editors ──────────────────────────────────────────────────────────────
 
+const TEXT_LIMIT = 4000;
+
 function TextEditor({ node, onChange }: { node: any; onChange: (p: any) => void }) {
+  const len = (node.content ?? '').length;
+  const over = len > TEXT_LIMIT;
+  const warn = !over && len > TEXT_LIMIT * 0.85;
   return (
     <div className="props-section">
       <Field label="Contenido">
-        <textarea value={node.content ?? ''} rows={6} onChange={e => onChange({ content: e.target.value })} />
+        <textarea value={node.content ?? ''} rows={6} onChange={e => onChange({ content: e.target.value })}
+          style={over ? { borderColor: '#ed4245' } : warn ? { borderColor: '#fcc419' } : undefined} />
+        <div style={{ textAlign: 'right', fontSize: 11, marginTop: 3,
+          color: over ? '#ed4245' : warn ? '#fcc419' : '#5c5f66' }}>
+          {len} / {TEXT_LIMIT}{over ? ' — límite superado' : ''}
+        </div>
       </Field>
     </div>
   );
