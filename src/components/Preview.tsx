@@ -142,13 +142,10 @@ function fmtTimestamp(ts: string, fmt?: string): string {
 }
 
 const IPATS: IPat[] = [
-  // escape character  \* \_ etc.
+  // escape character  \* \_ etc.  (always first so escaped chars bypass all patterns)
   { re: /\\([*_~|`\\>])/g,           fn: (_, c) => c, terminal: true },
-  // inline code (terminal)
-  { re: /`([^`\n]+)`/g,              fn: (_, c) => <code style={CO_S}>{c}</code>, terminal: true },
-  // spoiler
-  { re: /\|\|([^|]+)\|\|/g,          fn: (_, t) => <span style={{ background: '#111', color: 'transparent', borderRadius: 3, padding: '0 3px', userSelect: 'none' }} title={t}>▒▒▒</span>, terminal: true },
-  // bold+italic, bold, underline+bold+italic, underline+bold, underline+italic, underline, italic, strikethrough
+  // bold+italic, bold, underline combos, underline, italic, strikethrough
+  // processed BEFORE inline code so **`code`** renders as bold+code
   { re: /\*\*\*([^*\n]+)\*\*\*/g,    fn: (_, t) => <strong><em>{t}</em></strong> },
   { re: /\*\*([^*\n]+)\*\*/g,        fn: (_, t) => <strong>{t}</strong> },
   { re: /__\*\*\*([^*_\n]+)\*\*\*__/g, fn: (_, t) => <u><strong><em>{t}</em></strong></u>, terminal: true },
@@ -158,6 +155,10 @@ const IPATS: IPat[] = [
   { re: /\*([^*\n]+)\*/g,            fn: (_, t) => <em>{t}</em> },
   { re: /_([^_\n]+)_/g,              fn: (_, t) => <em>{t}</em> },
   { re: /~~([^~\n]+)~~/g,            fn: (_, t) => <span style={{ textDecoration: 'line-through', opacity: .65 }}>{t}</span> },
+  // inline code (terminal — after bold/italic so **`code`** nests correctly)
+  { re: /`([^`\n]+)`/g,              fn: (_, c) => <code style={CO_S}>{c}</code>, terminal: true },
+  // spoiler
+  { re: /\|\|([^|]+)\|\|/g,          fn: (_, t) => <span style={{ background: '#111', color: 'transparent', borderRadius: 3, padding: '0 3px', userSelect: 'none' }} title={t}>▒▒▒</span>, terminal: true },
   // Discord timestamps  <t:unix>  <t:unix:R>
   { re: /<t:(\d+)(?::([tTdDfFR]))?>/g, fn: (_, ts, fmt) => <span style={TS_S}>🕐 {fmtTimestamp(ts, fmt)}</span>, terminal: true },
   // slash command mentions  </cmd:id>  </cmd sub:id>
