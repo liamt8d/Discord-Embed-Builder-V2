@@ -9,7 +9,7 @@ export const POST: APIRoute = async ({ request }) => {
       typeof webhookUrl !== 'string' ||
       !webhookUrl.match(/^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\/\d+\/.+/)
     ) {
-      return new Response(JSON.stringify({ error: 'URL de webhook inválida. Debe ser https://discord.com/api/webhooks/...' }), {
+      return new Response(JSON.stringify({ error: 'URL de webhook inválida.' }), {
         status: 400, headers: { 'Content-Type': 'application/json' },
       });
     }
@@ -20,8 +20,7 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    // zero-width space — invisible in Discord, required by webhook endpoint for Components V2
-    const body: any = { flags: 1 << 15, components, content: '​' };
+    const body: any = { flags: 1 << 15, components };
     if (!allowedMentions) body.allowed_mentions = { parse: [] };
 
     const res = await fetch(`${webhookUrl}?wait=true`, {
@@ -34,13 +33,15 @@ export const POST: APIRoute = async ({ request }) => {
       return new Response(JSON.stringify({ id: 'webhook' }), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    const data = await res.json().catch(() => ({})) as any;
+    const raw = await res.text();
+    let data: any = {};
+    try { data = JSON.parse(raw); } catch { /* non-json */ }
 
     if (!res.ok) {
       const errMsg = data.message
         ? `${data.message}${data.code ? ` (code: ${data.code})` : ''}`
-        : `Error ${res.status} de Discord`;
-      return new Response(JSON.stringify({ error: errMsg, discord: data }), {
+        : `Error ${res.status}: ${raw.slice(0, 200)}`;
+      return new Response(JSON.stringify({ error: errMsg }), {
         status: res.status, headers: { 'Content-Type': 'application/json' },
       });
     }

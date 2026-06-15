@@ -117,6 +117,7 @@ export default function Builder() {
 
   // fetch bot info when token changes (debounced)
   useEffect(() => {
+    if (sendMode !== 'bot') return;
     if (!token || token.length < 20) { setBotInfo(null); return; }
     const t = setTimeout(async () => {
       try {
@@ -126,7 +127,25 @@ export default function Builder() {
       } catch { setBotInfo(null); }
     }, 800);
     return () => clearTimeout(t);
-  }, [token]);
+  }, [token, sendMode]);
+
+  // fetch webhook info when webhookUrl changes (debounced)
+  useEffect(() => {
+    if (sendMode !== 'webhook') { return; }
+    if (!webhookUrl || !webhookUrl.includes('/api/webhooks/')) { setBotInfo(null); return; }
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/webhook-info', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ webhookUrl }),
+        });
+        if (res.ok) setBotInfo(await res.json() as BotInfo);
+        else setBotInfo(null);
+      } catch { setBotInfo(null); }
+    }, 800);
+    return () => clearTimeout(t);
+  }, [webhookUrl, sendMode]);
 
   const updateNodes = useCallback((nodes: RootNode[]) => setState(s => ({ ...s, nodes })), []);
 
@@ -395,7 +414,7 @@ export default function Builder() {
         <span style={{ color: '#5865f2', display: 'flex', alignItems: 'center' }}><IcBox size={18} /></span>
         <h1>Discord Component Builder</h1>
 
-        {botInfo && sendMode === 'bot' && (
+        {botInfo && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#b5bac1' }}>
             {botInfo.avatar
               ? <img src={botInfo.avatar} style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }} alt="" />
