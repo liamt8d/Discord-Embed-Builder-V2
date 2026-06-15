@@ -91,23 +91,23 @@ Output goes to `dist/`.
 ## Changelog
 
 ### v1.1.0 — 2026-06-15
-- **Webhook mejorado** — Soporte completo de Components V2 (`with_components=true`, API v10)
-- **Thread ID** — Envía mensajes directamente a hilos
-- **Editar mensaje** — Edita mensajes existentes del bot o del mismo webhook
-- **Restaurar mensaje** — Carga los componentes de un mensaje existente al editor
-- **Preview webhook** — Avatar y nombre del webhook en el preview
-- **SEO & Open Graph** — Preview al compartir el link en Discord/redes
-- **UI más grande** — Tamaño de fuente y paneles aumentados
-- **Changelog** — Modal con historial de versiones
+- **Webhook improved** — Full Components V2 support (`with_components=true`, API v10)
+- **Thread ID** — Send messages directly to threads
+- **Edit message** — Edit existing messages sent by the bot or the same webhook
+- **Restore message** — Load an existing message's components into the editor
+- **Webhook preview** — Webhook avatar and name shown in the live preview
+- **SEO & Open Graph** — Link preview when sharing on Discord/social media
+- **Larger UI** — Increased font size and panel widths for better readability
+- **Changelog modal** — Version history accessible from the header
 
 ### v1.0.0 — 2026-06-15
-- Lanzamiento inicial
+- Initial release
 - Components V2: Container, Text, Section, Gallery, Divider, Action Row, Buttons, Selects
-- Bot Token send mode con live preview
-- Export JSON
-- Estado guardado en URL hash
-- Sistema de toasts y modal de bienvenida/tutorial
-- Alerta de seguridad para credenciales
+- Bot Token send mode with live preview
+- Export to JSON
+- State saved in URL hash for shareable builds
+- Toast notifications and welcome/tutorial modal
+- Security warning when entering credentials
 
 ---
 
