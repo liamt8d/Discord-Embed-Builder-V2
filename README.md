@@ -1,0 +1,93 @@
+# Discord Component Builder
+
+Visual builder for Discord **Components V2** messages. Design containers, sections, buttons, galleries and more — then send them directly to a channel via Bot Token or Webhook.
+
+**Live demo:** [embed-generator.urugordos.com](https://embed-generator.urugordos.com) 
+
+![Discord Component Builder screenshot](https://i.imgur.com/nopTtYP.png) 
+
+---
+
+## Features
+
+- 📦 **Container** — accent color, spoiler
+- ▦ **Action Row** — up to 5 buttons or 1 select menu
+- ¶ **Text** — full Discord markdown (headings, bold, italic, emojis, mentions…)
+- ▤ **Section** — text + thumbnail or button accessory
+- ⊞ **Gallery** — up to 10 images in a grid
+- ─ **Divider** — horizontal separator
+- 🔗 **Webhook** or **Bot Token** send modes
+- 🔴 Live preview with Discord-accurate rendering
+- 💾 State saved in URL hash — share your build with a link
+- 📥 Export to JSON for direct API use
+
+## Tech stack
+
+- [Astro](https://astro.build) (SSR, Cloudflare adapter)
+- [React](https://react.dev) (interactive islands)
+- [Cloudflare Pages](https://pages.cloudflare.com) (hosting)
+- TypeScript, pnpm
+
+---
+
+## Local development
+
+Requires **Node.js 18+** and **pnpm**.
+
+```bash
+git clone https://github.com/liamt8d/Discord-Embed-Builder.git
+cd Discord-Embed-Builder
+pnpm install
+pnpm dev
+```
+
+Open [http://localhost:4321](http://localhost:4321).
+
+## Build
+
+```bash
+pnpm build
+```
+
+Output goes to `dist/`.
+
+---
+
+## Deploy to Cloudflare Pages
+
+1. Push the repo to GitHub.
+2. Go to [Cloudflare Pages](https://pages.cloudflare.com) → **Create a project** → **Connect to Git**.
+3. Select the repo and set:
+   | Setting | Value |
+   |---|---|
+   | Framework preset | Astro |
+   | Build command | `pnpm run build` |
+   | Build output directory | `dist` |
+4. Click **Save and Deploy**. Done.
+
+> **No environment variables needed.** The bot token and webhook URL are stored in the user's browser (localStorage) and sent directly to Discord from the server-side API routes.
+
+---
+
+## Usage
+
+1. **Add components** using the left panel toolbar.
+2. **Edit properties** in the right panel (select a node in the tree or click it in the preview).
+3. **Preview** updates in real time in the center panel.
+4. **Send** — enter your Bot Token + Channel ID (or a Webhook URL), then click ▶ Enviar.
+
+### Discord markdown supported
+
+```
+# Heading 1   ## Heading 2   ### Heading 3
+**bold**  *italic*  __underline__  ~~strikethrough~~
+`inline code`  ```code block```
+||spoiler||  > blockquote  -# small text
+:shortcode:  <:name:id>  <a:name:id>  @mention  #channel
+```
+
+---
+
+## License
+
+[MIT](LICENSE) © 2026 Liam
