@@ -574,7 +574,7 @@ export default function Preview({ nodes, selected, onSelect, botInfo }: Props) {
             }
           </div>
           {/* Body */}
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
               <span style={{ color: '#fff', fontWeight: 600, fontSize: 15 }}>{botInfo?.username ?? 'Bot'}</span>
               <span style={{ background: '#5865f2', color: '#fff', borderRadius: 3, padding: '0 4px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.4px' }}>BOT</span>
@@ -591,7 +591,7 @@ export default function Preview({ nodes, selected, onSelect, botInfo }: Props) {
               if (n.type === 1)  return <PActionRow key={i} node={n} />;
               if (n.type === 10) return (
                 <Sel key={i} node={n} block>
-                  <div style={{ padding: '2px 0', fontFamily: EMO_FONT }}>{renderMarkdown(n.content ?? '')}</div>
+                  <div style={{ padding: '2px 0', fontFamily: EMO_FONT, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{renderMarkdown(n.content ?? '')}</div>
                 </Sel>
               );
               if (n.type === 14) return <PDivider key={i} node={n} />;
