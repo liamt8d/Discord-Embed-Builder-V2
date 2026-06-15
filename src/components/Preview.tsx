@@ -145,7 +145,9 @@ const IPATS: IPat[] = [
   { re: /@(everyone|here)\b/g,        fn: (_, w) => <span style={ME_S}>@{w}</span>, terminal: true },
   // plain-text @palabra → chip
   { re: /@([a-zA-Z0-9_.]{1,32})\b/g,  fn: (_, w) => <span style={M_S}>@{w}</span>, terminal: true },
-  // links
+  // masked links [text](url)
+  { re: /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, fn: (_, label, url) => <a href={url} target="_blank" rel="noreferrer" style={{ color: '#00aafc', textDecoration: 'none' }} onClick={e => e.stopPropagation()}>{label}</a>, terminal: true },
+  // bare links
   { re: /(https?:\/\/[^\s<>)"]+)/g,   fn: (_, u) => <a href={u} target="_blank" rel="noreferrer" style={{ color: '#00aafc', textDecoration: 'none' }} onClick={e => e.stopPropagation()}>{u}</a>, terminal: true },
 ];
 
@@ -194,6 +196,17 @@ function renderMarkdown(raw: string): React.ReactNode {
       continue;
     }
 
+    // >>> multiline blockquote (Discord: rest of message is quoted)
+    if (line.startsWith('>>> ')) {
+      const quoteLines = [line.slice(4), ...lines.slice(i + 1)];
+      blocks.push(
+        <div key={_k++} style={{ borderLeft: '4px solid #4e5058', paddingLeft: 10, color: '#dbdee1', margin: '2px 0', lineHeight: 1.375, fontFamily: EMO_FONT }}>
+          {quoteLines.map((ql, qi) => <div key={qi}>{renderInline(ql)}</div>)}
+        </div>
+      );
+      break; // >>> consumes rest of content
+    }
+
     // -# subtext (Discord small footer text)
     if (line.startsWith('-# ')) {
       blocks.push(<div key={_k++} style={{ fontSize: 12, color: '#80848e', lineHeight: 1.375, fontFamily: EMO_FONT, margin: '1px 0' }}>{renderInline(line.slice(3))}</div>);
@@ -204,7 +217,7 @@ function renderMarkdown(raw: string): React.ReactNode {
       blocks.push(<div key={_k++} style={{ fontSize: 20, fontWeight: 700, color: '#f2f3f5', margin: '10px 0 4px', lineHeight: 1.2, fontFamily: EMO_FONT }}>{renderInline(line.slice(3))}</div>);
     } else if (line.startsWith('# ')) {
       blocks.push(<div key={_k++} style={{ fontSize: 24, fontWeight: 700, color: '#f2f3f5', margin: '12px 0 4px', lineHeight: 1.2, fontFamily: EMO_FONT }}>{renderInline(line.slice(2))}</div>);
-    // blockquote
+    // single blockquote
     } else if (line.startsWith('> ')) {
       blocks.push(
         <div key={_k++} style={{ borderLeft: '4px solid #4e5058', paddingLeft: 10, color: '#dbdee1', margin: '2px 0', lineHeight: 1.375, fontFamily: EMO_FONT }}>
@@ -217,6 +230,16 @@ function renderMarkdown(raw: string): React.ReactNode {
         <div key={_k++} style={{ display: 'flex', gap: 6, lineHeight: 1.375, paddingLeft: 4, fontFamily: EMO_FONT }}>
           <span style={{ color: '#b5bac1', flexShrink: 0 }}>•</span>
           <span>{renderInline(line.slice(2))}</span>
+        </div>
+      );
+    // numbered list
+    } else if (/^\d+\. /.test(line)) {
+      const dotIdx = line.indexOf('. ');
+      const num = line.slice(0, dotIdx);
+      blocks.push(
+        <div key={_k++} style={{ display: 'flex', gap: 6, lineHeight: 1.375, paddingLeft: 4, fontFamily: EMO_FONT }}>
+          <span style={{ color: '#b5bac1', flexShrink: 0 }}>{num}.</span>
+          <span>{renderInline(line.slice(dotIdx + 2))}</span>
         </div>
       );
     // empty line → spacer
