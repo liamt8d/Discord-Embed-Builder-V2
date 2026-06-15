@@ -530,6 +530,9 @@ function PContainer({ node }: { node: any }) {
         marginBottom: 4,
         filter: node.spoiler ? 'blur(5px)' : undefined,
         overflow: 'hidden',
+        width: '100%',
+        boxSizing: 'border-box',
+        minWidth: 0,
       }}>
         {(node.components ?? []).map((c: any, i: number) => <PContainerChild key={i} node={c} />)}
         {!(node.components?.length) && (
