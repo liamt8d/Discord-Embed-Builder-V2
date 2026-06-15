@@ -87,7 +87,7 @@ const OPTIONAL_STR_FIELDS = new Set(['placeholder', 'description', 'url', 'emoji
 
 export function serialize(nodes: RootNode[]): unknown[] {
   return JSON.parse(JSON.stringify(nodes, (k, v) => {
-    if (k === '_id') return undefined;
+    if (k === '_id' || k === 'id') return undefined; // strip internal + discord-assigned ids
     if (v === null || v === undefined) return undefined;
     if (v === '' && OPTIONAL_STR_FIELDS.has(k)) return undefined;
     return v;
