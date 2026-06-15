@@ -71,9 +71,16 @@ function validateNodes(nodes: any[]): string[] {
       if (btns > 5) errors.push('Un Action Row puede tener máximo 5 botones.');
       comps.filter(c => c.type === 3).forEach(sm => {
         if (!sm.options?.length) errors.push(`Select Menu de texto necesita al menos 1 opción (ID: ${sm.custom_id || '?'}).`);
+        if (!sm.custom_id?.trim()) errors.push('Select Menu de texto necesita un Custom ID.');
+      });
+      comps.filter(c => SEL_TYPES.includes(c.type) && c.type !== 3).forEach(s => {
+        if (!s.custom_id?.trim()) errors.push(`Select menu necesita un Custom ID.`);
       });
       comps.filter(c => c.type === 2 && c.style !== 5).forEach(b => {
         if (!b.custom_id?.trim()) errors.push(`Botón "${b.label || '?'}" necesita un Custom ID.`);
+      });
+      comps.filter(c => c.type === 2 && c.style === 5).forEach(b => {
+        if (!b.url?.trim()) errors.push(`Botón link "${b.label || '?'}" necesita una URL.`);
       });
     }
     if (Array.isArray(node.components)) node.components.forEach(check);

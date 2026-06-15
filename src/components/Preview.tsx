@@ -293,10 +293,10 @@ const SEL_DEFAULTS: Record<number, string> = {
   6: 'Seleccionar roles…', 7: 'Seleccionar usuarios o roles…', 8: 'Seleccionar canales…',
 };
 const SEL_BADGE: Record<number, React.ReactNode> = {
-  5: <i className="fi fi-sr-user" style={{ fontSize: '0.9em' }} />,
-  6: <i className="fi fi-sr-shield" style={{ fontSize: '0.9em' }} />,
-  7: <i className="fi fi-sr-comment" style={{ fontSize: '0.9em' }} />,
-  8: <span style={{ fontWeight: 700, fontSize: '0.85em' }}>#</span>,
+  5: <i className="fi fi-sr-user"    style={{ fontSize: 11, lineHeight: 1, verticalAlign: 'middle' }} />,
+  6: <i className="fi fi-sr-shield"  style={{ fontSize: 11, lineHeight: 1, verticalAlign: 'middle' }} />,
+  7: <i className="fi fi-sr-comment" style={{ fontSize: 11, lineHeight: 1, verticalAlign: 'middle' }} />,
+  8: <span style={{ fontWeight: 700, fontSize: 12, lineHeight: 1 }}>#</span>,
 };
 const SEL_LABEL: Record<number, string> = { 5: 'Usuarios', 6: 'Roles', 7: 'Usuarios o roles', 8: 'Canales' };
 
