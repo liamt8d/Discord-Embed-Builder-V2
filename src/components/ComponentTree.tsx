@@ -1,22 +1,33 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { TYPE_ICON, TYPE_LABEL } from '../lib/utils';
-import { IcPlus, IcCopy, IcChevronUp, IcChevronDown, IcX } from './Icons';
+import { IcPlus, IcCopy, IcChevronUp, IcChevronDown, IcX, Fi } from './Icons';
 
-const ADD_OPTS_17 = [
+const ADD_OPTS_17: { type: number; icon: React.ReactNode; label: string }[] = [
   { type: 10, icon: '¶', label: 'Texto' },
   { type: 14, icon: '─', label: 'Divider' },
   { type: 9,  icon: '▤', label: 'Section' },
   { type: 12, icon: '⊞', label: 'Gallery' },
   { type: 1,  icon: '▦', label: 'Action Row' },
 ];
-const ADD_OPTS_1 = [
+const ADD_OPTS_1: { type: number; icon: React.ReactNode; label: string }[] = [
   { type: 2, icon: '⊙', label: 'Botón' },
   { type: 3, icon: '≡', label: 'Select texto' },
-  { type: 6, icon: '🎭', label: 'Select roles' },
-  { type: 5, icon: '👤', label: 'Select usuarios' },
-  { type: 7, icon: '💬', label: 'Select menciones' },
+  { type: 6, icon: <Fi name="shield" />, label: 'Select roles' },
+  { type: 5, icon: <Fi name="user" />, label: 'Select usuarios' },
+  { type: 7, icon: <Fi name="comment" />, label: 'Select menciones' },
   { type: 8, icon: '#', label: 'Select canales' },
 ];
+
+// Override emoji TYPE_ICON entries with Fi icons
+const TYPE_ICON_JSX: Record<number, React.ReactNode> = {
+  5:  <Fi name="user" />,
+  6:  <Fi name="shield" />,
+  7:  <Fi name="comment" />,
+  11: <Fi name="picture" />,
+  17: <Fi name="box" />,
+};
+const nodeIcon = (type: number): React.ReactNode =>
+  TYPE_ICON_JSX[type] ?? TYPE_ICON[type] ?? '?';
 
 interface Props {
   nodes: any[];
@@ -50,7 +61,7 @@ function NodeRow({ node, depth, selected, onSelect, onRemove, onMove, onAddChild
         style={{ paddingLeft: 6 + depth * 12 }}
         onClick={() => { onSelect(node._id); setAddOpen(false); }}
       >
-        <span className="tree-node-icon">{TYPE_ICON[node.type] ?? '?'}</span>
+        <span className="tree-node-icon">{nodeIcon(node.type)}</span>
         <span className="tree-node-label">{label}</span>
         <span className="tree-actions">
           {canAdd && (
