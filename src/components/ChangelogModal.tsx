@@ -5,6 +5,16 @@ interface Props { onClose: () => void }
 
 const CHANGELOG = [
   {
+    version: '1.1.1',
+    date: '2026-06-15',
+    changes: [
+      ['Botones interactivos', 'Los botones del preview ahora tienen hover, efecto de presión y cursor pointer.'],
+      ['Select menus funcionales', 'Los select de texto muestran un dropdown real con las opciones definidas. Los de usuarios/roles/canales explican que son solo disponibles en Discord.'],
+      ['Iconos UI (uicons)', 'Los emojis decorativos del UI fueron reemplazados por iconos de Flaticon uicons (solid rounded).'],
+      ['Fix desbordamiento de texto', 'Texto largo sin espacios ya no rompe el ancho del container en el preview.'],
+    ],
+  },
+  {
     version: '1.1.0',
     date: '2026-06-15',
     changes: [

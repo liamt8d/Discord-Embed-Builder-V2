@@ -90,6 +90,12 @@ Output goes to `dist/`.
 
 ## Changelog
 
+### v1.1.1 — 2026-06-15
+- **Interactive buttons** — Hover, press effect and pointer cursor on Action Row buttons in preview
+- **Functional select menus** — Text selects show a real dropdown with defined options; user/role/channel selects show a tooltip explaining Discord-only behavior
+- **UI icons (uicons)** — Decorative emojis replaced with Flaticon uicons solid-rounded icons
+- **Text overflow fix** — Long text without spaces no longer breaks the container width in preview
+
 ### v1.1.0 — 2026-06-15
 - **Webhook improved** — Full Components V2 support (`with_components=true`, API v10)
 - **Thread ID** — Send messages directly to threads
