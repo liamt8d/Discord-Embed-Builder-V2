@@ -234,11 +234,14 @@ function renderMarkdown(raw: string): React.ReactNode {
     if (line.startsWith('>>> ')) {
       const quoteLines = [line.slice(4), ...lines.slice(i + 1)];
       blocks.push(
-        <div key={_k++} style={{ borderLeft: '4px solid #4e5058', paddingLeft: 10, color: '#dbdee1', margin: '2px 0', lineHeight: 1.375, fontFamily: EMO_FONT }}>
-          {quoteLines.map((ql, qi) => <div key={qi}>{renderInline(ql)}</div>)}
+        <div key={_k++} style={{ display: 'flex', gap: 0, margin: '4px 0' }}>
+          <div style={{ width: 4, background: '#4e5058', borderRadius: 4, flexShrink: 0, marginRight: 12, minHeight: '1em' }} />
+          <div style={{ color: '#dbdee1', lineHeight: 1.375, fontFamily: EMO_FONT }}>
+            {quoteLines.map((ql, qi) => <div key={qi}>{renderInline(ql) || <br />}</div>)}
+          </div>
         </div>
       );
-      break; // >>> consumes rest of content
+      break;
     }
 
     // -# subtext (Discord small footer text)
@@ -251,13 +254,19 @@ function renderMarkdown(raw: string): React.ReactNode {
       blocks.push(<div key={_k++} style={{ fontSize: 20, fontWeight: 700, color: '#f2f3f5', margin: '10px 0 4px', lineHeight: 1.2, fontFamily: EMO_FONT }}>{renderInline(line.slice(3))}</div>);
     } else if (line.startsWith('# ')) {
       blocks.push(<div key={_k++} style={{ fontSize: 24, fontWeight: 700, color: '#f2f3f5', margin: '12px 0 4px', lineHeight: 1.2, fontFamily: EMO_FONT }}>{renderInline(line.slice(2))}</div>);
-    // single blockquote
+    // blockquote — collect consecutive > lines into one block
     } else if (line.startsWith('> ')) {
+      const qLines: string[] = [];
+      while (i < lines.length && lines[i].startsWith('> ')) { qLines.push(lines[i].slice(2)); i++; }
       blocks.push(
-        <div key={_k++} style={{ borderLeft: '4px solid #4e5058', paddingLeft: 10, color: '#dbdee1', margin: '2px 0', lineHeight: 1.375, fontFamily: EMO_FONT }}>
-          {renderInline(line.slice(2))}
+        <div key={_k++} style={{ display: 'flex', gap: 0, margin: '4px 0' }}>
+          <div style={{ width: 4, background: '#4e5058', borderRadius: 4, flexShrink: 0, marginRight: 12, minHeight: '1em' }} />
+          <div style={{ color: '#dbdee1', lineHeight: 1.375, fontFamily: EMO_FONT }}>
+            {qLines.map((ql, qi) => <div key={qi}>{renderInline(ql)}</div>)}
+          </div>
         </div>
       );
+      continue;
     // bullet list
     } else if (/^[-*] /.test(line)) {
       blocks.push(
@@ -272,7 +281,7 @@ function renderMarkdown(raw: string): React.ReactNode {
       const num = line.slice(0, dotIdx);
       blocks.push(
         <div key={_k++} style={{ display: 'flex', gap: 6, lineHeight: 1.375, paddingLeft: 4, fontFamily: EMO_FONT }}>
-          <span style={{ color: '#b5bac1', flexShrink: 0 }}>{num}.</span>
+          <span style={{ color: '#b5bac1', flexShrink: 0, minWidth: 16, textAlign: 'right' }}>{num}.</span>
           <span>{renderInline(line.slice(dotIdx + 2))}</span>
         </div>
       );
