@@ -82,10 +82,14 @@ export function addIds(nodes: any[]): any[] {
 
 // ── Serialization (remove _id before sending to Discord) ─────────────────────
 
+// Fields that are optional in Discord API — empty strings must be omitted
+const OPTIONAL_STR_FIELDS = new Set(['placeholder', 'description', 'url', 'emoji']);
+
 export function serialize(nodes: RootNode[]): unknown[] {
   return JSON.parse(JSON.stringify(nodes, (k, v) => {
     if (k === '_id') return undefined;
     if (v === null || v === undefined) return undefined;
+    if (v === '' && OPTIONAL_STR_FIELDS.has(k)) return undefined;
     return v;
   }));
 }
