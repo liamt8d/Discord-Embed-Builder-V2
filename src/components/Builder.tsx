@@ -606,21 +606,21 @@ export default function Builder() {
 
             {/* Thread ID + Message ID */}
             <div style={{ display: 'flex', gap: 8 }}>
-              <div className="field" style={{ flex: 1 }}>
-                <label>Thread ID <span style={{ color: '#4e5058', fontWeight: 400 }}>(opcional)</span></label>
+              <div className="field" style={{ flex: 1, minWidth: 0 }}>
+                <label style={{ fontSize: 11 }}>THREAD ID <span style={{ color: '#4e5058', fontWeight: 400 }}>· opcional</span></label>
                 <input value={threadId} onChange={e => setThreadId(e.target.value.trim())} placeholder="ID del hilo..." />
               </div>
-              <div className="field" style={{ flex: 1 }}>
-                <label>Message ID o URL <span style={{ color: '#4e5058', fontWeight: 400 }}>(editar)</span></label>
-                <input value={messageId} onChange={e => setMessageId(e.target.value.trim())} placeholder="ID o link del mensaje..." />
+              <div className="field" style={{ flex: 1, minWidth: 0 }}>
+                <label style={{ fontSize: 11 }}>MESSAGE ID <span style={{ color: '#4e5058', fontWeight: 400 }}>· editar</span></label>
+                <input value={messageId} onChange={e => setMessageId(e.target.value.trim())} placeholder="ID o URL..." />
               </div>
             </div>
             {messageId && (
               <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn-secondary" style={{ flex: 1 }} onClick={handleRestore} disabled={sending}>
+                <button className="btn-secondary" style={{ flex: 1, fontSize: 12 }} onClick={handleRestore} disabled={sending}>
                   ↩ Restaurar
                 </button>
-                <button className="btn-secondary" style={{ flex: 1, color: '#57f287', borderColor: '#57f287' }} onClick={handleEdit} disabled={sending}>
+                <button className="btn-secondary" style={{ flex: 1, fontSize: 12, color: '#57f287', borderColor: 'rgba(87,242,135,.4)' }} onClick={handleEdit} disabled={sending}>
                   ✏ Editar mensaje
                 </button>
               </div>
