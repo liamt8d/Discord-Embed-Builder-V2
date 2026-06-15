@@ -13,6 +13,7 @@ import Preview, { type BotInfo } from './Preview';
 import PropertyEditor from './PropertyEditor';
 import ToastContainer, { addToast } from './ToastSystem';
 import WelcomeModal from './WelcomeModal';
+import ChangelogModal from './ChangelogModal';
 import {
   IcSend, IcTrash, IcDownload, IcBell, IcBellOff,
   IcBox, IcGrid, IcText, IcLayout, IcImages, IcMinus,
@@ -97,6 +98,7 @@ export default function Builder() {
   const [sending, setSending]   = useState(false);
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [comingSoonOpen, setComingSoonOpen] = useState(false);
+  const [changelogOpen, setChangelogOpen] = useState(false);
   const [securityWarning, setSecurityWarning] = useState<'token' | 'webhook' | null>(null);
   const warnedRef = useRef(new Set<string>());
 
@@ -447,6 +449,7 @@ export default function Builder() {
 
       {/* ── Welcome modal ── */}
       {welcomeOpen && <WelcomeModal onClose={() => setWelcomeOpen(false)} />}
+      {changelogOpen && <ChangelogModal onClose={() => setChangelogOpen(false)} />}
 
       {/* ── Security warning ── */}
       {securityWarning && (
@@ -545,6 +548,9 @@ export default function Builder() {
         <button className="btn-secondary btn-coming-soon" title="Embeds normales — próximamente" onClick={() => setComingSoonOpen(true)}>
           <IcEmbed size={13} /> Embed normal
           <span className="badge-soon">Pronto</span>
+        </button>
+        <button className="btn-secondary" title="Changelog" onClick={() => setChangelogOpen(true)} style={{ padding: '6px 10px', fontSize: 13 }}>
+          📋
         </button>
         <button className="btn-secondary" title="Ver tutorial / info" onClick={() => setWelcomeOpen(true)} style={{ padding: '6px 10px' }}>
           <IcHelpCircle size={14} />

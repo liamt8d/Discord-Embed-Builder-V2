@@ -88,6 +88,29 @@ Output goes to `dist/`.
 
 ---
 
+## Changelog
+
+### v1.1.0 — 2026-06-15
+- **Webhook mejorado** — Soporte completo de Components V2 (`with_components=true`, API v10)
+- **Thread ID** — Envía mensajes directamente a hilos
+- **Editar mensaje** — Edita mensajes existentes del bot o del mismo webhook
+- **Restaurar mensaje** — Carga los componentes de un mensaje existente al editor
+- **Preview webhook** — Avatar y nombre del webhook en el preview
+- **SEO & Open Graph** — Preview al compartir el link en Discord/redes
+- **UI más grande** — Tamaño de fuente y paneles aumentados
+- **Changelog** — Modal con historial de versiones
+
+### v1.0.0 — 2026-06-15
+- Lanzamiento inicial
+- Components V2: Container, Text, Section, Gallery, Divider, Action Row, Buttons, Selects
+- Bot Token send mode con live preview
+- Export JSON
+- Estado guardado en URL hash
+- Sistema de toasts y modal de bienvenida/tutorial
+- Alerta de seguridad para credenciales
+
+---
+
 ## License
 
 [MIT](LICENSE) © 2026 Liam
