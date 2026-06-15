@@ -317,6 +317,9 @@ export default function Builder() {
     if (!state.nodes.length) { addToast('Agrega al menos un componente', 'err'); return; }
     const errs = validateNodes(state.nodes as any[]);
     if (errs.length) { addToast(errs[0], 'err'); return; }
+    if (sendMode === 'webhook' && hasDynamicSelects(state.nodes as any[])) {
+      addToast('Los selects de roles/usuarios/canales/menciones solo funcionan en modo Bot Token.', 'err'); return;
+    }
     setSending(true); setStatus({ msg: 'Editando mensaje…', kind: 'info' });
     try {
       let res: Response;
@@ -356,6 +359,16 @@ export default function Builder() {
 
   // ── send ────────────────────────────────────────────────────────────────────
 
+  const hasDynamicSelects = (nodes: any[]): boolean => {
+    const dynTypes = [5, 6, 7, 8];
+    const scan = (n: any): boolean => {
+      if (dynTypes.includes(n.type)) return true;
+      if (Array.isArray(n.components)) return n.components.some(scan);
+      return false;
+    };
+    return nodes.some(scan);
+  };
+
   const handleSend = async () => {
     if (!state.nodes.length) {
       setStatus({ msg: 'Agrega al menos un componente.', kind: 'err' });
@@ -365,6 +378,11 @@ export default function Builder() {
     if (errs.length) {
       setStatus({ msg: `⚠ ${errs[0]}`, kind: 'err' });
       addToast(errs[0], 'err'); return;
+    }
+    if (sendMode === 'webhook' && hasDynamicSelects(state.nodes as any[])) {
+      const msg = 'Los selects de roles/usuarios/canales/menciones solo funcionan en modo Bot Token.';
+      setStatus({ msg: `⚠ ${msg}`, kind: 'err' });
+      addToast(msg, 'err'); return;
     }
 
     if (sendMode === 'bot') {
@@ -654,7 +672,7 @@ export default function Builder() {
           {sendMode === 'webhook' && state.nodes.some((n: any) => n.type === 1 || n.components?.some((c: any) => c.type === 1)) && (
             <div style={{ margin: '0 6px 4px', padding: '7px 10px', background: 'rgba(255,200,0,.07)', border: '1px solid rgba(255,200,0,.25)', borderRadius: 6, fontSize: 11.5, color: '#fcc419', lineHeight: 1.5 }}>
               <Fi name="triangle-warning" style={{ marginRight: 5 }} />
-              Los <strong>Action Rows</strong> necesitan un bot con interaction handler para funcionar. En webhook mode los componentes se envían pero los clics no tendrán respuesta.
+              Los <strong>Action Rows</strong> necesitan <strong>Bot Token</strong> para funcionar. Los selects de roles/usuarios/canales/menciones no se pueden enviar via webhook.
             </div>
           )}
           <div className="panel-body">
