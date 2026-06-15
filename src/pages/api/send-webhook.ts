@@ -14,6 +14,12 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
+    if (!components || !Array.isArray(components) || components.length === 0) {
+      return new Response(JSON.stringify({ error: 'No hay componentes para enviar.' }), {
+        status: 400, headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     const body: any = { flags: 1 << 15, components };
     if (!allowedMentions) body.allowed_mentions = { parse: [] };
 
@@ -31,7 +37,10 @@ export const POST: APIRoute = async ({ request }) => {
     const data = await res.json().catch(() => ({})) as any;
 
     if (!res.ok) {
-      return new Response(JSON.stringify({ error: data.message ?? `Error ${res.status} de Discord` }), {
+      const errMsg = data.message
+        ? `${data.message}${data.code ? ` (code: ${data.code})` : ''}`
+        : `Error ${res.status} de Discord`;
+      return new Response(JSON.stringify({ error: errMsg, discord: data }), {
         status: res.status, headers: { 'Content-Type': 'application/json' },
       });
     }
