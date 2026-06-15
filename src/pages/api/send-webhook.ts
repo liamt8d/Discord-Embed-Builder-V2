@@ -20,7 +20,8 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    const body: any = { flags: 1 << 15, components };
+    // zero-width space — invisible in Discord, required by webhook endpoint for Components V2
+    const body: any = { flags: 1 << 15, components, content: '​' };
     if (!allowedMentions) body.allowed_mentions = { parse: [] };
 
     const res = await fetch(`${webhookUrl}?wait=true`, {
@@ -29,7 +30,6 @@ export const POST: APIRoute = async ({ request }) => {
       body: JSON.stringify(body),
     });
 
-    // 204 = sent but no wait (shouldn't happen with ?wait=true, but just in case)
     if (res.status === 204) {
       return new Response(JSON.stringify({ id: 'webhook' }), { headers: { 'Content-Type': 'application/json' } });
     }
