@@ -22,7 +22,7 @@ import {
 
 // ── defaults ──────────────────────────────────────────────────────────────────
 
-const DEFAULT_STATE: BuilderState = { nodes: [], allowedMentions: false };
+const DEFAULT_STATE: BuilderState = { messages: [[]], allowedMentions: false };
 
 type SendMode = 'bot' | 'webhook';
 
@@ -30,8 +30,17 @@ function loadState(): BuilderState {
   try {
     const hash = window.location.hash.slice(1);
     if (hash) {
-      const s = decodeState(hash) as BuilderState | null;
-      if (s?.nodes) return { ...s, allowedMentions: (s as any).allowedMentions ?? false, nodes: addIds(s.nodes as any[]) as RootNode[] };
+      const s = decodeState(hash) as any | null;
+      if (!s) return DEFAULT_STATE;
+      const am = s.allowedMentions ?? false;
+      // new format: messages[][]
+      if (Array.isArray(s.messages)) {
+        return { messages: s.messages.map((m: any[]) => addIds(m) as RootNode[]), allowedMentions: am };
+      }
+      // old format: nodes[]
+      if (Array.isArray(s.nodes)) {
+        return { messages: [addIds(s.nodes) as RootNode[]], allowedMentions: am };
+      }
     }
   } catch { /* ignore */ }
   return DEFAULT_STATE;
@@ -129,6 +138,7 @@ function validateNodes(nodes: any[]): string[] {
 
 export default function Builder() {
   const [state, setState]       = useState<BuilderState>(DEFAULT_STATE);
+  const [activeMsg, setActiveMsg] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [token, setToken]       = useState('');
   const [channelId, setChannelId] = useState('');
@@ -194,7 +204,36 @@ export default function Builder() {
     return () => clearTimeout(t);
   }, [webhookUrl, sendMode]);
 
-  const updateNodes = useCallback((nodes: RootNode[]) => setState(s => ({ ...s, nodes })), []);
+  // clamp activeMsg if messages shrink
+  const safeMsgIdx = Math.min(activeMsg, Math.max(0, state.messages.length - 1));
+  const activeNodes: RootNode[] = state.messages[safeMsgIdx] ?? [];
+
+  const updateNodes = useCallback((nodes: RootNode[]) =>
+    setState(s => {
+      const msgs = [...s.messages];
+      const idx = Math.min(activeMsg, Math.max(0, msgs.length - 1));
+      msgs[idx] = nodes;
+      return { ...s, messages: msgs };
+    }), [activeMsg]);
+
+  const addMessage = () => {
+    setState(s => ({ ...s, messages: [...s.messages, []] }));
+    setActiveMsg(state.messages.length); // next index
+    setSelected(null);
+    addToast('Mensaje nuevo agregado', 'info');
+  };
+
+  const removeMessage = (idx: number) => {
+    if (state.messages.length <= 1) { addToast('Debe haber al menos un mensaje', 'warn'); return; }
+    if (!window.confirm(`¿Eliminar Mensaje ${idx + 1}?`)) return;
+    setState(s => {
+      const msgs = s.messages.filter((_, i) => i !== idx);
+      return { ...s, messages: msgs };
+    });
+    setActiveMsg(prev => Math.min(prev, state.messages.length - 2));
+    setSelected(null);
+    addToast(`Mensaje ${idx + 1} eliminado`, 'warn');
+  };
 
   // ── credential security warning ────────────────────────────────────────────
 
@@ -228,33 +267,33 @@ export default function Builder() {
   // ── tree ops ────────────────────────────────────────────────────────────────
 
   const handleRemove = (id: string) => {
-    updateNodes(removeNodeById(state.nodes as any[], id) as RootNode[]);
+    updateNodes(removeNodeById(activeNodes as any[], id) as RootNode[]);
     if (selected === id) setSelected(null);
     addToast('Componente eliminado', 'warn');
   };
 
   const handleMove = (id: string, dir: -1 | 1) =>
-    updateNodes(moveNode(state.nodes as any[], id, dir) as RootNode[]);
+    updateNodes(moveNode(activeNodes as any[], id, dir) as RootNode[]);
 
   const handleChange = (patch: any) => {
     if (!selected) return;
-    updateNodes(updateNodeById(state.nodes as any[], selected, (n: any) => ({ ...n, ...patch })) as RootNode[]);
+    updateNodes(updateNodeById(activeNodes as any[], selected, (n: any) => ({ ...n, ...patch })) as RootNode[]);
   };
 
   const handleAddChild = useCallback((parentId: string, type: number) => {
     const factory = CHILD_FACTORIES[type];
     if (!factory) return;
     const child = factory();
-    const newNodes = updateNodeById(state.nodes as any[], parentId, (n: any) => {
+    const newNodes = updateNodeById(activeNodes as any[], parentId, (n: any) => {
       if (!Array.isArray(n.components)) return n;
       return { ...n, components: [...n.components, child] };
     }) as RootNode[];
     updateNodes(newNodes);
     setSelected(child._id);
-  }, [state.nodes, updateNodes]);
+  }, [activeNodes, updateNodes]);
 
   const handleDuplicate = useCallback((id: string) => {
-    const node = findNodeById(state.nodes as any[], id);
+    const node = findNodeById(activeNodes as any[], id);
     if (!node) return;
     function deepClone(n: any): any {
       const clone = { ...n, _id: Math.random().toString(36).slice(2, 9) };
@@ -276,14 +315,14 @@ export default function Builder() {
       }
       return null;
     }
-    const newNodes = insertAfter(state.nodes as any[]) ?? [...(state.nodes as any[]), cloned];
+    const newNodes = insertAfter(activeNodes as any[]) ?? [...(activeNodes as any[]), cloned];
     updateNodes(newNodes as RootNode[]);
     setSelected(cloned._id);
     addToast('Componente duplicado', 'info');
-  }, [state.nodes, updateNodes]);
+  }, [activeNodes, updateNodes]);
 
   const addRoot = (node: any, label?: string) => {
-    updateNodes([...state.nodes, node]);
+    updateNodes([...activeNodes, node]);
     setSelected(node._id);
     if (label) addToast(`${label} agregado`, 'info');
   };
@@ -350,13 +389,13 @@ export default function Builder() {
   const handleEdit = async () => {
     const mid = parseMessageId(messageId);
     if (!mid) { addToast('Ingresa un Message ID o URL', 'err'); return; }
-    if (!state.nodes.length) { addToast('Agrega al menos un componente', 'err'); return; }
-    const errs = validateNodes(state.nodes as any[]);
+    if (!activeNodes.length) { addToast('Agrega al menos un componente', 'err'); return; }
+    const errs = validateNodes(activeNodes as any[]);
     if (errs.length) { addToast(errs[0], 'err'); return; }
-    if (sendMode === 'webhook' && hasDynamicSelects(state.nodes as any[])) {
+    if (sendMode === 'webhook' && hasDynamicSelects(activeNodes as any[])) {
       addToast('Los selects de roles/usuarios/canales/menciones solo funcionan en modo Bot Token.', 'err'); return;
     }
-    setSending(true); setStatus({ msg: 'Editando mensaje…', kind: 'info' });
+    setSending(true); setStatus({ msg: `Editando Msg ${safeMsgIdx + 1}…`, kind: 'info' });
     try {
       let res: Response;
       if (sendMode === 'webhook') {
@@ -366,7 +405,7 @@ export default function Builder() {
         editUrl.searchParams.set('wait', 'true');
         editUrl.searchParams.set('with_components', 'true');
         if (threadId) editUrl.searchParams.set('thread_id', threadId);
-        const body: any = { flags: 1 << 15, components: serialize(state.nodes) };
+        const body: any = { flags: 1 << 15, components: serialize(activeNodes) };
         if (!state.allowedMentions) body.allowed_mentions = { parse: [] };
         res = await fetch(editUrl.toString(), {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -376,7 +415,7 @@ export default function Builder() {
         const ch = threadId || channelId;
         res = await fetch('/api/edit', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, channelId: ch, messageId: mid, components: serialize(state.nodes), allowedMentions: state.allowedMentions }),
+          body: JSON.stringify({ token, channelId: ch, messageId: mid, components: serialize(activeNodes), allowedMentions: state.allowedMentions }),
         });
       }
       const data = await res.json() as any;
@@ -414,19 +453,22 @@ export default function Builder() {
   };
 
   const handleSend = async () => {
-    if (!state.nodes.length) {
-      setStatus({ msg: 'Agrega al menos un componente.', kind: 'err' });
-      addToast('Agrega al menos un componente', 'err'); return;
-    }
-    const errs = validateNodes(state.nodes as any[]);
-    if (errs.length) {
-      setStatus({ msg: `⚠ ${errs[0]}`, kind: 'err' });
-      addToast(errs[0], 'err'); return;
-    }
-    if (sendMode === 'webhook' && hasDynamicSelects(state.nodes as any[])) {
-      const msg = 'Los selects de roles/usuarios/canales/menciones solo funcionan en modo Bot Token.';
-      setStatus({ msg: `⚠ ${msg}`, kind: 'err' });
-      addToast(msg, 'err'); return;
+    // validate all messages
+    for (let i = 0; i < state.messages.length; i++) {
+      const nodes = state.messages[i];
+      if (!nodes.length) {
+        const msg = `Msg ${i + 1} está vacío — agrega componentes o elimínalo.`;
+        setStatus({ msg: `⚠ ${msg}`, kind: 'err' }); addToast(msg, 'err'); return;
+      }
+      const errs = validateNodes(nodes as any[]);
+      if (errs.length) {
+        const msg = state.messages.length > 1 ? `Msg ${i + 1}: ${errs[0]}` : errs[0];
+        setStatus({ msg: `⚠ ${msg}`, kind: 'err' }); addToast(msg, 'err'); return;
+      }
+      if (sendMode === 'webhook' && hasDynamicSelects(nodes as any[])) {
+        const msg = `Msg ${i + 1}: los selects de roles/usuarios/canales/menciones solo funcionan en modo Bot Token.`;
+        setStatus({ msg: `⚠ ${msg}`, kind: 'err' }); addToast(msg, 'err'); return;
+      }
     }
 
     if (sendMode === 'bot') {
@@ -446,45 +488,52 @@ export default function Builder() {
     }
 
     setSending(true);
-    setStatus({ msg: 'Enviando…', kind: 'info' });
+    const total = state.messages.length;
+    const sentIds: string[] = [];
 
     try {
-      let res: Response;
+      for (let i = 0; i < state.messages.length; i++) {
+        const nodes = state.messages[i];
+        setStatus({ msg: `Enviando${total > 1 ? ` Msg ${i + 1}/${total}` : ''}…`, kind: 'info' });
+        let res: Response;
 
-      if (sendMode === 'webhook') {
-        const parsedUrl = buildWebhookUrl(webhookUrl);
-        const discordBody: any = { flags: 1 << 15, components: serialize(state.nodes) };
-        if (!state.allowedMentions) discordBody.allowed_mentions = { parse: [] };
-        res = await fetch(parsedUrl.toString(), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(discordBody),
-        });
-      } else {
-        res = await fetch('/api/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ components: serialize(state.nodes), channelId: threadId || channelId, token, allowedMentions: state.allowedMentions }),
-        });
-      }
-
-      const data = await res.json() as any;
-      if (!res.ok) {
-        const errText = data.message ?? data.error ?? 'Error de Discord';
-        const errCode = data.code ? ` (code: ${data.code})` : '';
-        // Extract first field-level error from Discord's error object
-        let fieldHint = '';
-        if (data.errors) {
-          const flat = JSON.stringify(data.errors);
-          const m = flat.match(/"message":"([^"]+)"/);
-          if (m) fieldHint = ` — ${m[1]}`;
+        if (sendMode === 'webhook') {
+          const parsedUrl = buildWebhookUrl(webhookUrl);
+          const discordBody: any = { flags: 1 << 15, components: serialize(nodes) };
+          if (!state.allowedMentions) discordBody.allowed_mentions = { parse: [] };
+          res = await fetch(parsedUrl.toString(), {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(discordBody),
+          });
+        } else {
+          res = await fetch('/api/send', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ components: serialize(nodes), channelId: threadId || channelId, token, allowedMentions: state.allowedMentions }),
+          });
         }
-        const msg = `Error ${res.status}: ${errText}${errCode}${fieldHint}`;
-        setStatus({ msg, kind: 'err' }); addToast(msg, 'err');
-      } else {
-        setStatus({ msg: `✓ Enviado (ID: ${data.id})`, kind: 'ok' });
-        addToast('Mensaje enviado correctamente', 'ok');
+
+        const data = await res.json() as any;
+        if (!res.ok) {
+          const errText = data.message ?? data.error ?? 'Error de Discord';
+          const errCode = data.code ? ` (code: ${data.code})` : '';
+          let fieldHint = '';
+          if (data.errors) {
+            const flat = JSON.stringify(data.errors);
+            const m = flat.match(/"message":"([^"]+)"/);
+            if (m) fieldHint = ` — ${m[1]}`;
+          }
+          const msg = `${total > 1 ? `Msg ${i + 1}: ` : ''}Error ${res.status}: ${errText}${errCode}${fieldHint}`;
+          setStatus({ msg, kind: 'err' }); addToast(msg, 'err');
+          return;
+        }
+        sentIds.push(data.id);
       }
+
+      const okMsg = total > 1
+        ? `✓ ${total} mensajes enviados (IDs: ${sentIds.join(', ')})`
+        : `✓ Enviado (ID: ${sentIds[0]})`;
+      setStatus({ msg: okMsg, kind: 'ok' });
+      addToast(total > 1 ? `${total} mensajes enviados` : 'Mensaje enviado', 'ok');
     } catch (e) {
       const msg = `Error de red: ${e}`;
       setStatus({ msg, kind: 'err' }); addToast(msg, 'err');
@@ -494,17 +543,21 @@ export default function Builder() {
   // ── misc ────────────────────────────────────────────────────────────────────
 
   const handleClear = () => {
-    if (!window.confirm('¿Eliminar todos los componentes?')) return;
+    const label = state.messages.length > 1 ? `¿Eliminar todos los componentes del Msg ${safeMsgIdx + 1}?` : '¿Eliminar todos los componentes?';
+    if (!window.confirm(label)) return;
     updateNodes([]); setSelected(null);
-    addToast('Builder limpiado', 'warn');
+    addToast('Componentes eliminados', 'warn');
   };
 
   const handleExport = () => {
-    const json = JSON.stringify({ flags: 1 << 15, components: serialize(state.nodes) }, null, 2);
+    const payload = state.messages.length > 1
+      ? state.messages.map(m => ({ flags: 1 << 15, components: serialize(m) }))
+      : { flags: 1 << 15, components: serialize(activeNodes) };
+    const json = JSON.stringify(payload, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
-    a.href = url; a.download = 'message.json'; a.click();
+    a.href = url; a.download = state.messages.length > 1 ? 'messages.json' : 'message.json'; a.click();
     URL.revokeObjectURL(url);
     addToast('JSON exportado', 'ok');
   };
@@ -514,7 +567,7 @@ export default function Builder() {
     addToast(state.allowedMentions ? 'Pings desactivados' : 'Pings activados', 'info');
   };
 
-  const selectedNode = selected ? findNodeById(state.nodes as any[], selected) : null;
+  const selectedNode = selected ? findNodeById(activeNodes as any[], selected) : null;
 
   // ── render ──────────────────────────────────────────────────────────────────
 
@@ -643,14 +696,15 @@ export default function Builder() {
           <IcTrash size={13} /> Limpiar
         </button>
         {(() => {
-          const total = countTextChars(state.nodes as any[]);
+          const total = countTextChars(activeNodes as any[]);
           const over = total > TEXT_TOTAL_LIMIT;
           const warn = !over && total > TEXT_TOTAL_LIMIT * 0.85;
           return (
-            <span title="Total de caracteres en todos los nodos de texto" style={{
+            <span title={`Texto en Msg ${safeMsgIdx + 1} (límite Discord: ${TEXT_TOTAL_LIMIT} chars)`} style={{
               fontSize: 11, color: over ? '#ed4245' : warn ? '#fcc419' : '#5c5f66',
               fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
             }}>
+              {state.messages.length > 1 && <span style={{ opacity: .6 }}>M{safeMsgIdx + 1} </span>}
               {total} / {TEXT_TOTAL_LIMIT}
             </span>
           );
@@ -732,8 +786,33 @@ export default function Builder() {
             <button className="btn-secondary" onClick={() => addRoot(newDivider(), 'Divider')} title="Divider"><IcMinus size={12} /> Divider</button>
           </div>
 
-          <div className="panel-header">Árbol de componentes</div>
-          {sendMode === 'webhook' && state.nodes.some((n: any) => n.type === 1 || n.components?.some((c: any) => c.type === 1)) && (
+          {/* Message tabs */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '4px 8px 0', borderBottom: '1px solid #1e1f22', flexWrap: 'wrap' }}>
+            {state.messages.map((_, i) => (
+              <button key={i}
+                onClick={() => { setActiveMsg(i); setSelected(null); }}
+                style={{
+                  padding: '3px 10px', fontSize: 11, borderRadius: '4px 4px 0 0', border: 'none', cursor: 'pointer', fontWeight: 600,
+                  background: i === safeMsgIdx ? '#313338' : 'transparent',
+                  color: i === safeMsgIdx ? '#dbdee1' : '#72767d',
+                }}>
+                Msg {i + 1}
+              </button>
+            ))}
+            <button onClick={addMessage} title="Agregar mensaje"
+              style={{ padding: '3px 8px', fontSize: 13, borderRadius: '4px 4px 0 0', border: 'none', cursor: 'pointer', background: 'transparent', color: '#72767d', lineHeight: 1 }}>
+              +
+            </button>
+            {state.messages.length > 1 && (
+              <button onClick={() => removeMessage(safeMsgIdx)} title={`Eliminar Msg ${safeMsgIdx + 1}`}
+                style={{ padding: '3px 8px', fontSize: 11, borderRadius: '4px 4px 0 0', border: 'none', cursor: 'pointer', background: 'transparent', color: '#ed4245', marginLeft: 'auto' }}>
+                ✕
+              </button>
+            )}
+          </div>
+
+          <div className="panel-header" style={{ marginTop: 0 }}>Árbol de componentes</div>
+          {sendMode === 'webhook' && activeNodes.some((n: any) => n.type === 1 || n.components?.some((c: any) => c.type === 1)) && (
             <div style={{ margin: '0 6px 4px', padding: '7px 10px', background: 'rgba(255,200,0,.07)', border: '1px solid rgba(255,200,0,.25)', borderRadius: 6, fontSize: 11.5, color: '#fcc419', lineHeight: 1.5 }}>
               <Fi name="triangle-warning" style={{ marginRight: 5 }} />
               Los <strong>Action Rows</strong> necesitan <strong>Bot Token</strong> para funcionar. Los selects de roles/usuarios/canales/menciones no se pueden enviar via webhook.
@@ -741,7 +820,7 @@ export default function Builder() {
           )}
           <div className="panel-body">
             <ComponentTree
-              nodes={state.nodes as any[]}
+              nodes={activeNodes as any[]}
               selected={selected}
               onSelect={setSelected}
               onRemove={handleRemove}
@@ -754,7 +833,7 @@ export default function Builder() {
 
         {/* ── CENTER ── */}
         <main className="panel-center">
-          <Preview nodes={state.nodes} selected={selected} onSelect={setSelected} botInfo={botInfo} />
+          <Preview nodes={activeNodes} selected={selected} onSelect={setSelected} botInfo={botInfo} />
         </main>
 
         {/* ── RIGHT ── */}
@@ -772,7 +851,7 @@ export default function Builder() {
         <small style={{ background: sendMode === 'webhook' ? 'rgba(88,101,242,.15)' : 'transparent', padding: '1px 6px', borderRadius: 4 }}>
           {sendMode === 'bot' ? <><Fi name="robot" style={{ marginRight: 4 }} /> Bot</> : <><Fi name="link" style={{ marginRight: 4 }} /> Webhook</>}
         </small>
-        <small>{state.nodes.length} componente(s)</small>
+        <small>Msg {safeMsgIdx + 1}/{state.messages.length} · {activeNodes.length} comp.</small>
         <small>{state.allowedMentions ? <><IcBell size={11} /> Pings ON</> : <><IcBellOff size={11} /> Pings OFF</>}</small>
       </div>
     </div>

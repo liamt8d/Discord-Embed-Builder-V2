@@ -48,6 +48,6 @@ export interface ContainerNode {
 export type RootNode = ContainerNode | ActionRowNode | TextNode | DividerNode | SectionNode | GalleryNode
 
 export interface BuilderState {
-  nodes: RootNode[];
+  messages: RootNode[][];  // one array per message
   allowedMentions: boolean; // true = pings ON, false = pings OFF (parse: [])
 }
