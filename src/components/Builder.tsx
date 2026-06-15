@@ -277,9 +277,15 @@ export default function Builder() {
       let res: Response;
 
       if (sendMode === 'webhook') {
-        // send directly from browser — Discord webhooks support CORS
+        const parsedUrl = new URL(webhookUrl);
+        // normalize to v10 API
+        if (parsedUrl.pathname.startsWith('/api/webhooks/')) {
+          parsedUrl.pathname = '/api/v10/webhooks/' + parsedUrl.pathname.slice('/api/webhooks/'.length);
+        }
+        parsedUrl.searchParams.set('wait', 'true');
+        parsedUrl.searchParams.set('with_components', 'true');
         const discordBody: any = { flags: 1 << 15, components: serialize(state.nodes) };
-        res = await fetch(`${webhookUrl}?wait=true`, {
+        res = await fetch(parsedUrl.toString(), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(discordBody),
