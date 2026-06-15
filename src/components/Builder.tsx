@@ -285,6 +285,7 @@ export default function Builder() {
         parsedUrl.searchParams.set('wait', 'true');
         parsedUrl.searchParams.set('with_components', 'true');
         const discordBody: any = { flags: 1 << 15, components: serialize(state.nodes) };
+        if (!state.allowedMentions) discordBody.allowed_mentions = { parse: [] };
         res = await fetch(parsedUrl.toString(), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -501,9 +502,7 @@ export default function Builder() {
                   onFocus={() => handleCredentialFocus('webhook')}
                   onChange={e => handleWebhook(e.target.value)}
                   placeholder="https://discord.com/api/webhooks/..." />
-                <small style={{ marginTop: 2, color: '#f5c400' }}>
-                  ⚠️ Components V2 solo funciona con webhooks creados por una aplicación (bot), no con webhooks normales del servidor.
-                </small>
+                <small style={{ marginTop: 2, color: '#949ba4' }}>El preview del bot no aparece en modo webhook.</small>
               </div>
             )}
           </div>
