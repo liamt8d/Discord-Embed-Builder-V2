@@ -15,11 +15,11 @@
   --success: #2d7d46;
   --danger:  #c0392b;
   --radius:  6px;
-  --left:   320px;
-  --right:  340px;
+  --left:   340px;
+  --right:  360px;
 }
 
-html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'gg sans','Noto Sans','Helvetica Neue',Helvetica,Arial,sans-serif; font-size: 14px; overflow: hidden; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'gg sans','Noto Sans','Helvetica Neue',Helvetica,Arial,sans-serif; font-size: 15px; overflow: hidden; }
 
 /* ── Layout ────────────────────────────────────────────────────────────────── */
 #root { display: flex; flex-direction: column; height: 100vh; }
