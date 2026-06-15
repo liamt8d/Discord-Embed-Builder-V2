@@ -58,13 +58,30 @@ const CHILD_FACTORIES: Record<number, () => any> = {
 
 // ── Validate before sending ────────────────────────────────────────────────────
 
+export const TEXT_TOTAL_LIMIT = 4000;
+
+function countTextChars(nodes: any[]): number {
+  let total = 0;
+  function walk(node: any) {
+    if (node.type === 10) total += (node.content ?? '').length;
+    if (Array.isArray(node.components)) node.components.forEach(walk);
+    if (node.accessory) walk(node.accessory);
+  }
+  nodes.forEach(walk);
+  return total;
+}
+
 function validateNodes(nodes: any[]): string[] {
   const errors: string[] = [];
+  const totalChars = countTextChars(nodes);
+  if (totalChars > TEXT_TOTAL_LIMIT) {
+    errors.push(`Total de texto demasiado largo: ${totalChars} caracteres (límite: ${TEXT_TOTAL_LIMIT}). Reducí el contenido de los nodos de texto.`);
+  }
   function check(node: any) {
-    // Text: content required, max 4000 chars
+    // Text: content required, max 4000 chars per node
     if (node.type === 10) {
       if (!node.content?.trim()) errors.push('Hay un nodo de Texto vacío — escribe algo o elimínalo.');
-      else if ((node.content ?? '').length > 4000) errors.push(`Texto demasiado largo (${(node.content ?? '').length} caracteres). Discord permite máximo 4000 por nodo de texto.`);
+      else if ((node.content ?? '').length > TEXT_TOTAL_LIMIT) errors.push(`Texto demasiado largo (${(node.content ?? '').length} caracteres). Discord permite máximo 4000 por nodo de texto.`);
     }
     // Thumbnail: media.url required
     if (node.type === 11 && !node.media?.url?.trim()) {
@@ -625,6 +642,19 @@ export default function Builder() {
         <button className="btn-danger" onClick={handleClear} title="Limpiar todo">
           <IcTrash size={13} /> Limpiar
         </button>
+        {(() => {
+          const total = countTextChars(state.nodes as any[]);
+          const over = total > TEXT_TOTAL_LIMIT;
+          const warn = !over && total > TEXT_TOTAL_LIMIT * 0.85;
+          return (
+            <span title="Total de caracteres en todos los nodos de texto" style={{
+              fontSize: 11, color: over ? '#ed4245' : warn ? '#fcc419' : '#5c5f66',
+              fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
+            }}>
+              {total} / {TEXT_TOTAL_LIMIT}
+            </span>
+          );
+        })()}
         <button className="btn-success btn-send" onClick={handleSend} disabled={sending}>
           {sending ? 'Enviando…' : <><IcSend size={13} /> Enviar</>}
         </button>
