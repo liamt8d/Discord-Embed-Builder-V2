@@ -255,25 +255,45 @@ function renderMarkdown(raw: string): React.ReactNode {
       blocks.push(<div key={_k++} style={{ fontSize: 20, fontWeight: 700, color: '#f2f3f5', margin: '10px 0 4px', lineHeight: 1.2, fontFamily: EMO_FONT }}>{renderInline(line.slice(3))}</div>);
     } else if (line.startsWith('# ')) {
       blocks.push(<div key={_k++} style={{ fontSize: 24, fontWeight: 700, color: '#f2f3f5', margin: '12px 0 4px', lineHeight: 1.2, fontFamily: EMO_FONT }}>{renderInline(line.slice(2))}</div>);
-    // blockquote — collect consecutive > lines into one block
+    // blockquote — collect consecutive > lines, render inner content as full markdown
     } else if (line.startsWith('> ')) {
       const qLines: string[] = [];
       while (i < lines.length && lines[i].startsWith('> ')) { qLines.push(lines[i].slice(2)); i++; }
       blocks.push(
         <div key={_k++} style={{ display: 'flex', gap: 0, margin: '4px 0' }}>
           <div style={{ width: 4, background: '#4e5058', borderRadius: 4, flexShrink: 0, marginRight: 12, minHeight: '1em' }} />
-          <div style={{ color: '#dbdee1', lineHeight: 1.375, fontFamily: EMO_FONT }}>
-            {qLines.map((ql, qi) => <div key={qi}>{renderInline(ql)}</div>)}
+          <div style={{ color: '#dbdee1', lineHeight: 1.375, fontFamily: EMO_FONT, flex: 1, minWidth: 0 }}>
+            {renderMarkdown(qLines.join('\n'))}
           </div>
         </div>
       );
       continue;
+    // sub-bullet (2+ spaces or tab indent) → ◦ marker
+    } else if (/^( {2,}|\t)[-*] /.test(line)) {
+      const stripped = line.replace(/^( {2,}|\t)[-*] /, '');
+      blocks.push(
+        <div key={_k++} style={{ display: 'flex', gap: 6, lineHeight: 1.375, paddingLeft: 20, fontFamily: EMO_FONT }}>
+          <span style={{ color: '#b5bac1', flexShrink: 0 }}>◦</span>
+          <span>{renderInline(stripped)}</span>
+        </div>
+      );
     // bullet list
     } else if (/^[-*] /.test(line)) {
       blocks.push(
         <div key={_k++} style={{ display: 'flex', gap: 6, lineHeight: 1.375, paddingLeft: 4, fontFamily: EMO_FONT }}>
           <span style={{ color: '#b5bac1', flexShrink: 0 }}>•</span>
           <span>{renderInline(line.slice(2))}</span>
+        </div>
+      );
+    // sub-numbered list (2+ spaces + number)
+    } else if (/^( {2,}|\t)\d+\. /.test(line)) {
+      const stripped = line.replace(/^( {2,}|\t)/, '');
+      const dotIdx = stripped.indexOf('. ');
+      const num = stripped.slice(0, dotIdx);
+      blocks.push(
+        <div key={_k++} style={{ display: 'flex', gap: 6, lineHeight: 1.375, paddingLeft: 20, fontFamily: EMO_FONT }}>
+          <span style={{ color: '#b5bac1', flexShrink: 0, minWidth: 16, textAlign: 'right' }}>{num}.</span>
+          <span>{renderInline(stripped.slice(dotIdx + 2))}</span>
         </div>
       );
     // numbered list
