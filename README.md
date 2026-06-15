@@ -90,6 +90,15 @@ Output goes to `dist/`.
 
 ## Changelog
 
+### v1.2.0 — 2026-06-15
+- **Multi-message** — Add multiple independent messages from the "Mensajes" tabs in the left panel. Enviar sends them all in sequence.
+- **Message tabs** — Msg 1 / Msg 2 / … tabs with component count badge, green + to add and red ✕ to remove the active one.
+- **Multi export** — When multiple messages exist, Export generates an array of JSON objects ready for the API.
+- **Text character limit** — Validates total characters per message (Discord limit: 4000). Live counter in the header (grey / yellow / red).
+- **Per-node counter** — Text editor shows X / 4000 with colored border when approaching or exceeding the limit.
+- **Fix Error 50035** — Validates thumbnails without URL, gallery items without URL and empty text nodes before sending. Error message now shows the specific field Discord rejects.
+- **Fix markdown in blockquotes** — `>>>` and `>` blocks now render full markdown (bullets, `-#`, headings, bold, etc.) in the preview.
+
 ### v1.1.1 — 2026-06-15
 - **Interactive buttons** — Hover, press effect and pointer cursor on Action Row buttons in preview
 - **Functional select menus** — Text selects show a real dropdown with defined options; user/role/channel selects show a tooltip explaining Discord-only behavior
