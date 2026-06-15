@@ -402,7 +402,7 @@ function PSelectMenu({ node }: { node: any }) {
             {badge && <span style={{ fontSize: 13, flexShrink: 0 }}>{badge}</span>}
             {displayLabel}
           </span>
-          <span style={{ opacity: .6, flexShrink: 0, transition: 'transform 120ms', transform: open ? 'rotate(180deg)' : 'none' }}>▾</span>
+          <i className="fi fi-sr-angle-small-down" style={{ fontSize: 12, opacity: .6, flexShrink: 0, transition: 'transform 120ms', transform: open ? 'rotate(180deg)' : 'none', lineHeight: 1 }} />
         </div>
         <SelectDropdown
           anchorRef={triggerRef}

@@ -651,6 +651,12 @@ export default function Builder() {
           </div>
 
           <div className="panel-header">Árbol de componentes</div>
+          {sendMode === 'webhook' && state.nodes.some((n: any) => n.type === 1 || n.components?.some((c: any) => c.type === 1)) && (
+            <div style={{ margin: '0 6px 4px', padding: '7px 10px', background: 'rgba(255,200,0,.07)', border: '1px solid rgba(255,200,0,.25)', borderRadius: 6, fontSize: 11.5, color: '#fcc419', lineHeight: 1.5 }}>
+              <Fi name="triangle-warning" style={{ marginRight: 5 }} />
+              Los <strong>Action Rows</strong> necesitan un bot con interaction handler para funcionar. En webhook mode los componentes se envían pero los clics no tendrán respuesta.
+            </div>
+          )}
           <div className="panel-body">
             <ComponentTree
               nodes={state.nodes as any[]}
