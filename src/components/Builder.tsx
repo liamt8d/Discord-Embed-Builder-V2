@@ -496,7 +496,9 @@ export default function Builder() {
                   onFocus={() => handleCredentialFocus('webhook')}
                   onChange={e => handleWebhook(e.target.value)}
                   placeholder="https://discord.com/api/webhooks/..." />
-                <small style={{ marginTop: 2 }}>El preview del bot no aparece en modo webhook.</small>
+                <small style={{ marginTop: 2, color: '#f5c400' }}>
+                  ⚠️ Components V2 solo funciona con webhooks creados por una aplicación (bot), no con webhooks normales del servidor.
+                </small>
               </div>
             )}
           </div>
