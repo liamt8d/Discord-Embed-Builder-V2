@@ -90,6 +90,8 @@ export default function Builder() {
   const [channelId, setChannelId] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [sendMode, setSendMode] = useState<SendMode>('bot');
+  const [threadId, setThreadId]   = useState('');
+  const [messageId, setMessageId] = useState('');
   const [botInfo, setBotInfo]   = useState<BotInfo | null>(null);
   const [status, setStatus]     = useState<{ msg: string; kind: 'ok' | 'err' | 'info' } | null>(null);
   const [sending, setSending]   = useState(false);
@@ -241,6 +243,108 @@ export default function Builder() {
     if (label) addToast(`${label} agregado`, 'info');
   };
 
+  // ── helpers ─────────────────────────────────────────────────────────────────
+
+  const parseMessageId = (v: string) => {
+    const m = v.match(/\/(\d+)$/);
+    return m ? m[1] : v.trim();
+  };
+
+  const buildWebhookUrl = (base: string, extra?: Record<string, string>) => {
+    const u = new URL(base);
+    if (u.pathname.startsWith('/api/webhooks/')) {
+      u.pathname = '/api/v10/webhooks/' + u.pathname.slice('/api/webhooks/'.length);
+    }
+    u.searchParams.set('wait', 'true');
+    u.searchParams.set('with_components', 'true');
+    if (threadId) u.searchParams.set('thread_id', threadId);
+    if (extra) Object.entries(extra).forEach(([k, val]) => u.searchParams.set(k, val));
+    return u;
+  };
+
+  // ── restore ─────────────────────────────────────────────────────────────────
+
+  const handleRestore = async () => {
+    const mid = parseMessageId(messageId);
+    if (!mid) { addToast('Ingresa un Message ID o URL', 'err'); return; }
+    setSending(true); setStatus({ msg: 'Cargando mensaje…', kind: 'info' });
+    try {
+      let components: any[];
+      if (sendMode === 'webhook') {
+        const u = buildWebhookUrl(webhookUrl);
+        const pathParts = u.pathname.split('/');
+        const basePath = pathParts.slice(0, pathParts.length).join('/');
+        const restoreUrl = new URL(`${u.origin}${basePath}/messages/${mid}`);
+        if (threadId) restoreUrl.searchParams.set('thread_id', threadId);
+        const res = await fetch(restoreUrl.toString());
+        if (!res.ok) { const d = await res.json() as any; throw new Error(d.message ?? `Error ${res.status}`); }
+        const data = await res.json() as any;
+        components = data.components ?? [];
+      } else {
+        const ch = threadId || channelId;
+        const res = await fetch('/api/restore', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, channelId: ch, messageId: mid }),
+        });
+        const data = await res.json() as any;
+        if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`);
+        components = data.components ?? [];
+      }
+      if (!components.length) { addToast('El mensaje no tiene componentes', 'warn'); return; }
+      updateNodes(addIds(components) as RootNode[]);
+      setStatus({ msg: '✓ Mensaje restaurado', kind: 'ok' });
+      addToast('Mensaje restaurado', 'ok');
+    } catch (e: any) {
+      const msg = `Error al restaurar: ${e.message ?? e}`;
+      setStatus({ msg, kind: 'err' }); addToast(msg, 'err');
+    } finally { setSending(false); }
+  };
+
+  // ── edit ────────────────────────────────────────────────────────────────────
+
+  const handleEdit = async () => {
+    const mid = parseMessageId(messageId);
+    if (!mid) { addToast('Ingresa un Message ID o URL', 'err'); return; }
+    if (!state.nodes.length) { addToast('Agrega al menos un componente', 'err'); return; }
+    const errs = validateNodes(state.nodes as any[]);
+    if (errs.length) { addToast(errs[0], 'err'); return; }
+    setSending(true); setStatus({ msg: 'Editando mensaje…', kind: 'info' });
+    try {
+      let res: Response;
+      if (sendMode === 'webhook') {
+        const u = buildWebhookUrl(webhookUrl);
+        const pathParts = u.pathname.split('/');
+        const editUrl = new URL(`${u.origin}${pathParts.join('/')}/messages/${mid}`);
+        editUrl.searchParams.set('wait', 'true');
+        editUrl.searchParams.set('with_components', 'true');
+        if (threadId) editUrl.searchParams.set('thread_id', threadId);
+        const body: any = { flags: 1 << 15, components: serialize(state.nodes) };
+        if (!state.allowedMentions) body.allowed_mentions = { parse: [] };
+        res = await fetch(editUrl.toString(), {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      } else {
+        const ch = threadId || channelId;
+        res = await fetch('/api/edit', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, channelId: ch, messageId: mid, components: serialize(state.nodes), allowedMentions: state.allowedMentions }),
+        });
+      }
+      const data = await res.json() as any;
+      if (!res.ok) {
+        const msg = `Error ${res.status}: ${data.message ?? data.error ?? 'Error'}`;
+        setStatus({ msg, kind: 'err' }); addToast(msg, 'err');
+      } else {
+        setStatus({ msg: `✓ Mensaje editado (ID: ${data.id})`, kind: 'ok' });
+        addToast('Mensaje editado', 'ok');
+      }
+    } catch (e: any) {
+      const msg = `Error: ${e.message ?? e}`;
+      setStatus({ msg, kind: 'err' }); addToast(msg, 'err');
+    } finally { setSending(false); }
+  };
+
   // ── send ────────────────────────────────────────────────────────────────────
 
   const handleSend = async () => {
@@ -277,13 +381,7 @@ export default function Builder() {
       let res: Response;
 
       if (sendMode === 'webhook') {
-        const parsedUrl = new URL(webhookUrl);
-        // normalize to v10 API
-        if (parsedUrl.pathname.startsWith('/api/webhooks/')) {
-          parsedUrl.pathname = '/api/v10/webhooks/' + parsedUrl.pathname.slice('/api/webhooks/'.length);
-        }
-        parsedUrl.searchParams.set('wait', 'true');
-        parsedUrl.searchParams.set('with_components', 'true');
+        const parsedUrl = buildWebhookUrl(webhookUrl);
         const discordBody: any = { flags: 1 << 15, components: serialize(state.nodes) };
         if (!state.allowedMentions) discordBody.allowed_mentions = { parse: [] };
         res = await fetch(parsedUrl.toString(), {
@@ -295,7 +393,7 @@ export default function Builder() {
         res = await fetch('/api/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ components: serialize(state.nodes), channelId, token, allowedMentions: state.allowedMentions }),
+          body: JSON.stringify({ components: serialize(state.nodes), channelId: threadId || channelId, token, allowedMentions: state.allowedMentions }),
         });
       }
 
@@ -503,6 +601,28 @@ export default function Builder() {
                   onChange={e => handleWebhook(e.target.value)}
                   placeholder="https://discord.com/api/webhooks/..." />
                 <small style={{ marginTop: 2, color: '#949ba4' }}>El preview del bot no aparece en modo webhook.</small>
+              </div>
+            )}
+
+            {/* Thread ID + Message ID */}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div className="field" style={{ flex: 1 }}>
+                <label>Thread ID <span style={{ color: '#4e5058', fontWeight: 400 }}>(opcional)</span></label>
+                <input value={threadId} onChange={e => setThreadId(e.target.value.trim())} placeholder="ID del hilo..." />
+              </div>
+              <div className="field" style={{ flex: 1 }}>
+                <label>Message ID o URL <span style={{ color: '#4e5058', fontWeight: 400 }}>(editar)</span></label>
+                <input value={messageId} onChange={e => setMessageId(e.target.value.trim())} placeholder="ID o link del mensaje..." />
+              </div>
+            </div>
+            {messageId && (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn-secondary" style={{ flex: 1 }} onClick={handleRestore} disabled={sending}>
+                  ↩ Restaurar
+                </button>
+                <button className="btn-secondary" style={{ flex: 1, color: '#57f287', borderColor: '#57f287' }} onClick={handleEdit} disabled={sending}>
+                  ✏ Editar mensaje
+                </button>
               </div>
             )}
           </div>
