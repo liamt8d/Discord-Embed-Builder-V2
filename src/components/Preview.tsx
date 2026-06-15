@@ -1,4 +1,5 @@
 import React, { createContext, useContext } from 'react';
+import ReactDOM from 'react-dom';
 import type { RootNode } from '../lib/types';
 import { addToast } from './ToastSystem';
 
@@ -263,12 +264,23 @@ function PDivider({ node }: { node: any }) {
   );
 }
 
-const BTN_BG: Record<number, string> = { 1: '#5865f2', 2: '#4e5058', 3: '#2d7d46', 4: '#c0392b', 5: '#4e5058' };
+const BTN_BG: Record<number, string>    = { 1: '#5865f2', 2: '#4e5058', 3: '#2d7d46', 4: '#c0392b', 5: '#4e5058' };
+const BTN_HOV: Record<number, string>   = { 1: '#4752c4', 2: '#6d6f78', 3: '#248045', 4: '#a12d21', 5: '#6d6f78' };
+const BTN_ACT: Record<number, string>   = { 1: '#3c45a5', 2: '#404249', 3: '#1a6334', 4: '#8a2418', 5: '#404249' };
 
 function PButton({ node }: { node: any }) {
+  const [hov, setHov] = React.useState(false);
+  const [act, setAct] = React.useState(false);
+  const bg = act ? (BTN_ACT[node.style] ?? '#3c3d42') : hov ? (BTN_HOV[node.style] ?? '#5c5f66') : (BTN_BG[node.style] ?? '#4e5058');
   return (
     <Sel node={node} block>
-      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 16px', borderRadius: 4, background: BTN_BG[node.style] ?? '#4e5058', color: '#fff', fontSize: 14, fontWeight: 500, opacity: node.disabled ? .4 : 1, cursor: 'default' }}>
+      <div
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 16px', borderRadius: 4, background: bg, color: '#fff', fontSize: 14, fontWeight: 500, opacity: node.disabled ? .4 : 1, cursor: node.disabled ? 'not-allowed' : 'pointer', transform: act ? 'scale(0.95)' : 'scale(1)', transition: 'background 80ms, transform 60ms', userSelect: 'none' }}
+        onMouseEnter={() => { if (!node.disabled) setHov(true); }}
+        onMouseLeave={() => { setHov(false); setAct(false); }}
+        onMouseDown={() => { if (!node.disabled) setAct(true); }}
+        onMouseUp={() => setAct(false)}
+      >
         {node.emoji && <span>{node.emoji.name}</span>}
         {node.label || 'Button'}
       </div>
@@ -280,20 +292,120 @@ const SEL_DEFAULTS: Record<number, string> = {
   3: 'Seleccionar…', 5: 'Seleccionar usuarios…',
   6: 'Seleccionar roles…', 7: 'Seleccionar usuarios o roles…', 8: 'Seleccionar canales…',
 };
-const SEL_BADGE: Record<number, string> = {
-  5: '👤', 6: '🎭', 7: '💬', 8: '#',
-};
+const SEL_BADGE: Record<number, string> = { 5: '👤', 6: '🎭', 7: '💬', 8: '#' };
+const SEL_LABEL: Record<number, string> = { 5: 'Usuarios', 6: 'Roles', 7: 'Usuarios o roles', 8: 'Canales' };
+
+function SelectDropdown({ anchorRef, open, onClose, isText, opts, selected, onToggle, badge, node }: {
+  anchorRef: React.RefObject<HTMLDivElement | null>;
+  open: boolean; onClose: () => void;
+  isText: boolean; opts: Array<{ label: string; value: string; description?: string }>;
+  selected: string[]; onToggle: (v: string) => void;
+  badge?: string; node: any;
+}) {
+  const [rect, setRect] = React.useState<DOMRect | null>(null);
+
+  React.useLayoutEffect(() => {
+    if (open && anchorRef.current) setRect(anchorRef.current.getBoundingClientRect());
+  }, [open]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (anchorRef.current && anchorRef.current.contains(e.target as Node)) return;
+      onClose();
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
+  if (!open || !rect) return null;
+
+  const dropStyle: React.CSSProperties = {
+    position: 'fixed',
+    top: rect.bottom,
+    left: rect.left,
+    width: rect.width,
+    background: '#111214',
+    border: '1px solid #5865f2',
+    borderTop: 'none',
+    borderRadius: '0 0 4px 4px',
+    zIndex: 9999,
+    maxHeight: 200,
+    overflowY: 'auto',
+  };
+
+  return ReactDOM.createPortal(
+    <div style={dropStyle}>
+      {isText && opts.length > 0 && opts.map((opt, i) => {
+        const isSel = selected.includes(opt.value);
+        return (
+          <div
+            key={i}
+            onClick={e => { e.stopPropagation(); onToggle(opt.value); }}
+            style={{ padding: '10px 12px', cursor: 'pointer', background: isSel ? 'rgba(88,101,242,.25)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}
+            onMouseEnter={e => { if (!isSel) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,.06)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = isSel ? 'rgba(88,101,242,.25)' : 'transparent'; }}
+          >
+            <div>
+              <div style={{ color: '#dbdee1', fontSize: 14, fontWeight: isSel ? 600 : 400 }}>{opt.label}</div>
+              {opt.description && <div style={{ color: '#80848e', fontSize: 12, marginTop: 2 }}>{opt.description}</div>}
+            </div>
+            {isSel && <span style={{ color: '#5865f2', fontSize: 13, fontWeight: 700 }}>✓</span>}
+          </div>
+        );
+      })}
+      {isText && opts.length === 0 && (
+        <div style={{ padding: '12px', textAlign: 'center', color: '#80848e', fontSize: 13 }}>
+          Sin opciones — añade opciones en el panel derecho
+        </div>
+      )}
+      {!isText && (
+        <div style={{ padding: '12px', color: '#80848e', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+          {badge && <span style={{ fontSize: 16 }}>{badge}</span>}
+          <span>Selección de <strong style={{ color: '#b5bac1' }}>{SEL_LABEL[node.type]}</strong> — solo disponible en Discord</span>
+        </div>
+      )}
+    </div>,
+    document.body
+  );
+}
 
 function PSelectMenu({ node }: { node: any }) {
+  const [open, setOpen] = React.useState(false);
+  const [selected, setSelected] = React.useState<string[]>([]);
+  const triggerRef = React.useRef<HTMLDivElement>(null);
+
+  const isText = node.type === 3;
+  const opts: Array<{ label: string; value: string; description?: string }> = isText ? (node.options ?? []) : [];
   const badge = SEL_BADGE[node.type];
+  const placeholder = node.placeholder || SEL_DEFAULTS[node.type] || 'Seleccionar…';
+  const displayLabel = selected.length ? selected.join(', ') : placeholder;
+
+  const toggle = (value: string) => {
+    setSelected(prev => prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value]);
+  };
+
   return (
     <Sel node={node} block>
-      <div style={{ background: '#1e1f22', border: '1px solid #3f4147', borderRadius: 4, padding: '9px 12px', color: '#b5bac1', fontSize: 14, width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {badge && <span style={{ fontSize: 13 }}>{badge}</span>}
-          {node.placeholder || SEL_DEFAULTS[node.type] || 'Seleccionar…'}
-        </span>
-        <span style={{ opacity: .6 }}>▾</span>
+      <div style={{ position: 'relative', width: '100%' }}>
+        <div
+          ref={triggerRef}
+          style={{ background: open ? '#111214' : '#1e1f22', border: `1px solid ${open ? '#5865f2' : '#3f4147'}`, borderRadius: 4, padding: '9px 12px', color: selected.length ? '#dbdee1' : '#b5bac1', fontSize: 14, width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, cursor: 'pointer', transition: 'border-color 80ms, background 80ms', boxSizing: 'border-box' }}
+          onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {badge && <span style={{ fontSize: 13, flexShrink: 0 }}>{badge}</span>}
+            {displayLabel}
+          </span>
+          <span style={{ opacity: .6, flexShrink: 0, transition: 'transform 120ms', transform: open ? 'rotate(180deg)' : 'none' }}>▾</span>
+        </div>
+        <SelectDropdown
+          anchorRef={triggerRef}
+          open={open} onClose={() => setOpen(false)}
+          isText={isText} opts={opts}
+          selected={selected} onToggle={toggle}
+          badge={badge} node={node}
+        />
       </div>
     </Sel>
   );
