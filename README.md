@@ -106,7 +106,7 @@ Output goes to `dist/`.
 - **Larger UI** — Increased font size and panel widths for better readability
 - **Changelog modal** — Version history accessible from the header
 
-### v1.0.0 — 2026-06-15
+### v1.0.0 — 2026-05-15
 - Initial release
 - Components V2: Container, Text, Section, Gallery, Divider, Action Row, Buttons, Selects
 - Bot Token send mode with live preview
