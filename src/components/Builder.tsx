@@ -274,19 +274,30 @@ export default function Builder() {
     setStatus({ msg: 'Enviando…', kind: 'info' });
 
     try {
-      const endpoint = sendMode === 'bot' ? '/api/send' : '/api/send-webhook';
-      const body = sendMode === 'bot'
-        ? { components: serialize(state.nodes), channelId, token, allowedMentions: state.allowedMentions }
-        : { components: serialize(state.nodes), webhookUrl, allowedMentions: state.allowedMentions };
+      let res: Response;
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+      if (sendMode === 'webhook') {
+        // send directly from browser — Discord webhooks support CORS
+        const discordBody: any = { flags: 1 << 15, components: serialize(state.nodes) };
+        if (!state.allowedMentions) discordBody.allowed_mentions = { parse: [] };
+        res = await fetch(`${webhookUrl}?wait=true`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(discordBody),
+        });
+      } else {
+        res = await fetch('/api/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ components: serialize(state.nodes), channelId, token, allowedMentions: state.allowedMentions }),
+        });
+      }
+
       const data = await res.json() as any;
       if (!res.ok) {
-        const msg = `Error ${res.status}: ${data.error ?? 'Error de Discord'}`;
+        const errText = data.message ?? data.error ?? 'Error de Discord';
+        const errCode = data.code ? ` (code: ${data.code})` : '';
+        const msg = `Error ${res.status}: ${errText}${errCode}`;
         setStatus({ msg, kind: 'err' }); addToast(msg, 'err');
       } else {
         setStatus({ msg: `✓ Enviado (ID: ${data.id})`, kind: 'ok' });
