@@ -787,31 +787,38 @@ export default function Builder() {
           </div>
 
           {/* Message tabs */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '4px 8px 0', borderBottom: '1px solid #1e1f22', flexWrap: 'wrap' }}>
-            {state.messages.map((_, i) => (
-              <button key={i}
-                onClick={() => { setActiveMsg(i); setSelected(null); }}
-                style={{
-                  padding: '3px 10px', fontSize: 11, borderRadius: '4px 4px 0 0', border: 'none', cursor: 'pointer', fontWeight: 600,
-                  background: i === safeMsgIdx ? '#313338' : 'transparent',
-                  color: i === safeMsgIdx ? '#dbdee1' : '#72767d',
-                }}>
-                Msg {i + 1}
+          <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #1e1f22', background: '#2b2d31' }}>
+            <span style={{ fontSize: 10, color: '#4e5058', fontWeight: 700, textTransform: 'uppercase', padding: '0 8px', letterSpacing: '.05em', flexShrink: 0 }}>Mensajes</span>
+            <div style={{ display: 'flex', flex: 1, gap: 2, overflow: 'auto', padding: '4px 4px 0' }}>
+              {state.messages.map((m, i) => (
+                <button key={i}
+                  onClick={() => { setActiveMsg(i); setSelected(null); }}
+                  style={{
+                    padding: '4px 12px', fontSize: 11, borderRadius: '4px 4px 0 0', border: 'none', cursor: 'pointer', fontWeight: 600,
+                    background: i === safeMsgIdx ? '#313338' : 'rgba(255,255,255,.04)',
+                    color: i === safeMsgIdx ? '#dbdee1' : '#72767d',
+                    whiteSpace: 'nowrap', flexShrink: 0,
+                  }}>
+                  Msg {i + 1}
+                  {m.length > 0 && <span style={{ marginLeft: 5, fontSize: 9, opacity: .6 }}>{m.length}</span>}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 2, padding: '0 4px', flexShrink: 0 }}>
+              <button onClick={addMessage} title="Agregar nuevo mensaje"
+                style={{ padding: '4px 9px', fontSize: 14, border: 'none', cursor: 'pointer', background: 'transparent', color: '#57f287', fontWeight: 700, lineHeight: 1 }}>
+                +
               </button>
-            ))}
-            <button onClick={addMessage} title="Agregar mensaje"
-              style={{ padding: '3px 8px', fontSize: 13, borderRadius: '4px 4px 0 0', border: 'none', cursor: 'pointer', background: 'transparent', color: '#72767d', lineHeight: 1 }}>
-              +
-            </button>
-            {state.messages.length > 1 && (
-              <button onClick={() => removeMessage(safeMsgIdx)} title={`Eliminar Msg ${safeMsgIdx + 1}`}
-                style={{ padding: '3px 8px', fontSize: 11, borderRadius: '4px 4px 0 0', border: 'none', cursor: 'pointer', background: 'transparent', color: '#ed4245', marginLeft: 'auto' }}>
-                ✕
-              </button>
-            )}
+              {state.messages.length > 1 && (
+                <button onClick={() => removeMessage(safeMsgIdx)} title={`Eliminar Msg ${safeMsgIdx + 1}`}
+                  style={{ padding: '4px 7px', fontSize: 11, border: 'none', cursor: 'pointer', background: 'transparent', color: '#ed4245', fontWeight: 700 }}>
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
 
-          <div className="panel-header" style={{ marginTop: 0 }}>Árbol de componentes</div>
+          <div className="panel-header" style={{ marginTop: 0 }}>Árbol · Msg {safeMsgIdx + 1}</div>
           {sendMode === 'webhook' && activeNodes.some((n: any) => n.type === 1 || n.components?.some((c: any) => c.type === 1)) && (
             <div style={{ margin: '0 6px 4px', padding: '7px 10px', background: 'rgba(255,200,0,.07)', border: '1px solid rgba(255,200,0,.25)', borderRadius: 6, fontSize: 11.5, color: '#fcc419', lineHeight: 1.5 }}>
               <Fi name="triangle-warning" style={{ marginRight: 5 }} />
