@@ -279,7 +279,6 @@ export default function Builder() {
       if (sendMode === 'webhook') {
         // send directly from browser — Discord webhooks support CORS
         const discordBody: any = { flags: 1 << 15, components: serialize(state.nodes) };
-        if (!state.allowedMentions) discordBody.allowed_mentions = { parse: [] };
         res = await fetch(`${webhookUrl}?wait=true`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

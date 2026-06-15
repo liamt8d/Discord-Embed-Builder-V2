@@ -83,7 +83,11 @@ export function addIds(nodes: any[]): any[] {
 // ── Serialization (remove _id before sending to Discord) ─────────────────────
 
 export function serialize(nodes: RootNode[]): unknown[] {
-  return JSON.parse(JSON.stringify(nodes, (k, v) => k === '_id' ? undefined : v));
+  return JSON.parse(JSON.stringify(nodes, (k, v) => {
+    if (k === '_id') return undefined;
+    if (v === null || v === undefined) return undefined;
+    return v;
+  }));
 }
 
 // ── Labels / icons ────────────────────────────────────────────────────────────
