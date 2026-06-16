@@ -120,7 +120,8 @@ button:disabled { opacity: .4; cursor: default; }
 .btn-toggle.on  { border-color: var(--success); color: #57f287; background: rgba(45,125,70,.18); }
 .btn-toggle.off { border-color: var(--danger);  color: #ed4245; background: rgba(192,57,43,.18); }
 
-.btn-send { padding: 7px 18px; font-size: 13px; font-weight: 600; }
+.btn-send { padding: 7px 18px; font-size: 13px; font-weight: 600; min-width: 86px; justify-content: center; }
+.btn-toggle { min-width: 96px; }
 
 /* ── Component Tree ──────────────────────────────────────────────────────────── */
 .tree-node {
@@ -252,7 +253,15 @@ small { font-size: 11px; color: var(--text3); }
 .modal-header {
   padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
   display: flex; align-items: center; gap: 14px;
+  position: relative;
 }
+.modal-close {
+  position: absolute; top: 14px; right: 16px;
+  background: none; border: none; cursor: pointer;
+  color: #4e5058; font-size: 16px; padding: 4px 6px;
+  border-radius: 4px; line-height: 1; transition: color .15s, background .15s;
+}
+.modal-close:hover { color: #ed4245; background: rgba(237,66,69,.1); }
 .modal-header-icon {
   width: 42px; height: 42px;
   background: rgba(88,101,242,.18); border-radius: 10px;
@@ -346,4 +355,19 @@ small { font-size: 11px; color: var(--text3); }
   font-size: 9px; font-weight: 700; border-radius: 8px;
   padding: 1px 5px; text-transform: uppercase; letter-spacing: .3px;
   white-space: nowrap; pointer-events: none;
+}
+
+
+/* ── PNG export region (hidden from view, used for canvas) ──────────────────── */
+#export-preview-clone {
+  position: fixed; left: -9999px; top: 0;
+  background: #313338; padding: 20px; border-radius: 8px;
+  font-family: 'gg sans', 'Noto Sans', sans-serif;
+  pointer-events: none;
+}
+
+@media print {
+  body * { visibility: hidden; }
+  #print-preview, #print-preview * { visibility: visible; }
+  #print-preview { position: fixed; left: 0; top: 0; width: 100%; background: #313338; padding: 20px; }
 }

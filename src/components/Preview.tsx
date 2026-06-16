@@ -13,6 +13,65 @@ const M_S  = { color: '#c9cdfb', background: 'rgba(88,101,242,.3)', borderRadius
 const ME_S = { color: '#f8a8c8', background: 'rgba(255,105,180,.18)', borderRadius: 3, padding: '0 3px', cursor: 'default' } as const;
 const CO_S = { background: '#1e1f22', color: '#b9bec7', borderRadius: 3, padding: '0 5px', fontFamily: 'Consolas,"Courier New",monospace', fontSize: '0.875em' } as const;
 const CB_S = { background: '#1e1f22', color: '#b9bec7', borderRadius: 4, padding: '10px 14px', fontFamily: 'Consolas,"Courier New",monospace', fontSize: 13, margin: '4px 0', whiteSpace: 'pre-wrap', wordBreak: 'break-all', display: 'block', overflowX: 'auto' } as const;
+const ANSI_CB_S = { ...CB_S, background: '#111214', color: '#dcddde' } as const;
+
+// ── ANSI color renderer ───────────────────────────────────────────────────────
+
+const ANSI_FG: Record<number, string> = {
+  30:'#4f545c', 31:'#dc322f', 32:'#859900', 33:'#b58900',
+  34:'#268bd2', 35:'#d33682', 36:'#2aa198', 37:'#dcddde',
+  90:'#4f545c', 91:'#ff7b72', 92:'#3fb950', 93:'#d29922',
+  94:'#58a6ff', 95:'#bc8cff', 96:'#39c5cf', 97:'#ffffff',
+};
+const ANSI_BG: Record<number, string> = {
+  40:'#002b36', 41:'#cb4b16', 42:'#586e75', 43:'#657b83',
+  44:'#839496', 45:'#6c71c4', 46:'#93a1a1', 47:'#fdf6e3',
+  100:'#002b36', 101:'#cb4b16', 102:'#586e75', 103:'#657b83',
+  104:'#839496', 105:'#6c71c4', 106:'#93a1a1', 107:'#fdf6e3',
+};
+interface AnsiSt { fg:string|null; bg:string|null; bold:boolean; dim:boolean; ul:boolean }
+function applyAnsiCodes(codes: number[], s: AnsiSt): AnsiSt {
+  const n = { ...s };
+  for (const c of codes) {
+    if (c===0) { n.fg=null; n.bg=null; n.bold=false; n.dim=false; n.ul=false; }
+    else if (c===1) n.bold=true;
+    else if (c===2) n.dim=true;
+    else if (c===4) n.ul=true;
+    else if (ANSI_FG[c]!==undefined) n.fg=ANSI_FG[c];
+    else if (ANSI_BG[c]!==undefined) n.bg=ANSI_BG[c];
+  }
+  return n;
+}
+function ansiToStyle(s: AnsiSt): React.CSSProperties {
+  const st: React.CSSProperties = {};
+  if (s.fg) st.color=s.fg;
+  if (s.bg) st.backgroundColor=s.bg;
+  if (s.bold) st.fontWeight='bold';
+  if (s.dim) st.opacity=0.65;
+  if (s.ul) st.textDecoration='underline';
+  return st;
+}
+let _ak=0;
+function renderAnsi(text: string): React.ReactNode {
+  const out: React.ReactNode[] = [];
+  let state: AnsiSt = { fg:null, bg:null, bold:false, dim:false, ul:false };
+  // match actual ESC character OR the literal string  / \x1b that some generators paste
+  const re = /(?:|\x1b|\\u001b|\\x1b)\[([0-9;]*)m/g;
+  let last=0, m: RegExpExecArray|null;
+  while ((m=re.exec(text))!==null) {
+    if (m.index>last) {
+      const st=ansiToStyle(state);
+      out.push(<span key={_ak++} style={Object.keys(st).length?st:undefined}>{text.slice(last,m.index)}</span>);
+    }
+    state=applyAnsiCodes(m[1]?m[1].split(';').map(Number).filter(n=>!isNaN(n)):[0], state);
+    last=m.index+m[0].length;
+  }
+  if (last<text.length) {
+    const st=ansiToStyle(state);
+    out.push(<span key={_ak++} style={Object.keys(st).length?st:undefined}>{text.slice(last)}</span>);
+  }
+  return <>{out}</>;
+}
 const EM_S  = { height: '1.3em', verticalAlign: 'text-bottom', display: 'inline-block' } as const;
 const EMO_FONT = "'gg sans','Noto Sans','Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif";
 
@@ -176,6 +235,10 @@ const IPATS: IPat[] = [
   { re: /<@!?(\d+)>/g,               fn: () => <span style={M_S}>@usuario</span>, terminal: true },
   { re: /<#(\d+)>/g,                  fn: () => <span style={M_S}>#canal</span>, terminal: true },
   { re: /<@&(\d+)>/g,                 fn: () => <span style={M_S}>@rol</span>, terminal: true },
+  { re: /<id:browse>/g,               fn: () => <span style={M_S}><i className="fi fi-sr-search" style={{fontSize:'0.8em',verticalAlign:'middle',marginRight:3}}/> Browse Channels</span>, terminal: true },
+  { re: /<id:customize>/g,            fn: () => <span style={M_S}><i className="fi fi-sr-list" style={{fontSize:'0.8em',verticalAlign:'middle',marginRight:3}}/> Channels &amp; Roles</span>, terminal: true },
+  { re: /<id:guide>/g,                fn: () => <span style={M_S}><i className="fi fi-sr-diploma" style={{fontSize:'0.8em',verticalAlign:'middle',marginRight:3}}/> Server Guide</span>, terminal: true },
+  { re: /<id:linked-roles>/g,         fn: () => <span style={M_S}><i className="fi fi-sr-link" style={{fontSize:'0.8em',verticalAlign:'middle',marginRight:3}}/> Linked Roles</span>, terminal: true },
   // plain-text @everyone / @here
   { re: /@(everyone|here)\b/g,        fn: (_, w) => <span style={ME_S}>@{w}</span>, terminal: true },
   // plain-text @palabra → chip
@@ -226,7 +289,12 @@ function renderMarkdown(raw: string): React.ReactNode {
       const codeLines: string[] = [];
       i++;
       while (i < lines.length && !lines[i].startsWith('```')) { codeLines.push(lines[i]); i++; }
-      blocks.push(<pre key={_k++} style={CB_S}>{codeLines.join('\n')}</pre>);
+      const codeContent = codeLines.join('\n');
+      if (lang === 'ansi') {
+        blocks.push(<pre key={_k++} style={ANSI_CB_S}>{renderAnsi(codeContent)}</pre>);
+      } else {
+        blocks.push(<pre key={_k++} style={CB_S}>{codeContent}</pre>);
+      }
       i++;
       continue;
     }

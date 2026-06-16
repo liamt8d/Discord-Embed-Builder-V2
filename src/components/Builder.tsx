@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { I18nProvider, LangSwitch, useT, type TKey } from '../lib/i18n';
 import type { BuilderState, RootNode } from '../lib/types';
 import {
   uid, encodeState, decodeState,
@@ -12,8 +13,14 @@ import ComponentTree from './ComponentTree';
 import Preview, { type BotInfo } from './Preview';
 import PropertyEditor from './PropertyEditor';
 import ToastContainer, { addToast } from './ToastSystem';
+import WebhookManager from './WebhookManager';
 import WelcomeModal from './WelcomeModal';
 import ChangelogModal from './ChangelogModal';
+import SendHistoryModal, { recordSend } from './SendHistoryModal';
+import TemplatesModal from './TemplatesModal';
+import ImportModal, { type ImportedPayload } from './ImportModal';
+import DiffModal from './DiffModal';
+import WebhookAppearanceModal from './WebhookAppearanceModal';
 import {
   IcSend, IcTrash, IcDownload, IcBell, IcBellOff,
   IcBox, IcGrid, IcText, IcLayout, IcImages, IcMinus,
@@ -80,51 +87,47 @@ function countTextChars(nodes: any[]): number {
   return total;
 }
 
-function validateNodes(nodes: any[]): string[] {
+type TFn = (key: TKey, ...args: (string | number)[]) => string;
+
+function validateNodes(nodes: any[], t: TFn): string[] {
   const errors: string[] = [];
   const totalChars = countTextChars(nodes);
   if (totalChars > TEXT_TOTAL_LIMIT) {
-    errors.push(`Total de texto demasiado largo: ${totalChars} caracteres (límite: ${TEXT_TOTAL_LIMIT}). Reducí el contenido de los nodos de texto.`);
+    errors.push(t('val_total_chars', totalChars, TEXT_TOTAL_LIMIT));
   }
   function check(node: any) {
-    // Text: content required, max 4000 chars per node
     if (node.type === 10) {
-      if (!node.content?.trim()) errors.push('Hay un nodo de Texto vacío — escribe algo o elimínalo.');
-      else if ((node.content ?? '').length > TEXT_TOTAL_LIMIT) errors.push(`Texto demasiado largo (${(node.content ?? '').length} caracteres). Discord permite máximo 4000 por nodo de texto.`);
+      if (!node.content?.trim()) errors.push(t('val_empty_text'));
+      else if ((node.content ?? '').length > TEXT_TOTAL_LIMIT) errors.push(t('val_text_too_long', (node.content ?? '').length, TEXT_TOTAL_LIMIT));
     }
-    // Thumbnail: media.url required
     if (node.type === 11 && !node.media?.url?.trim()) {
-      errors.push('Hay un Thumbnail sin URL — agrega una URL de imagen o elimínalo.');
+      errors.push(t('val_thumb_no_url'));
     }
-    // Gallery: each item needs media.url
     if (node.type === 12) {
       (node.items ?? []).forEach((item: any, idx: number) => {
-        if (!item.media?.url?.trim()) {
-          errors.push(`Gallery: el item ${idx + 1} no tiene URL de imagen.`);
-        }
+        if (!item.media?.url?.trim()) errors.push(t('val_gallery_no_url', idx + 1));
       });
     }
-    // Action Row
     if (node.type === 1) {
       const comps: any[] = node.components ?? [];
-      if (!comps.length) { errors.push('Hay un Action Row vacío — agrega al menos 1 botón o select menu.'); return; }
+      if (!comps.length) { errors.push(t('val_row_empty')); return; }
       const btns = comps.filter(c => c.type === 2).length;
       const sels = comps.filter(c => SEL_TYPES.includes(c.type)).length;
-      if (btns > 0 && sels > 0) errors.push('Un Action Row no puede tener botones Y select menu al mismo tiempo.');
-      if (sels > 1) errors.push('Un Action Row solo puede tener 1 select menu.');
-      if (btns > 5) errors.push('Un Action Row puede tener máximo 5 botones.');
+      if (btns > 0 && sels > 0) errors.push(t('val_row_conflict'));
+      if (sels > 1) errors.push(t('val_row_one_sel'));
+      if (btns > 5) errors.push(t('val_row_max_btns'));
       comps.filter(c => c.type === 3).forEach(sm => {
-        if (!sm.options?.length) errors.push(`Select Menu de texto necesita al menos 1 opción (ID: ${sm.custom_id || '?'}).`);
-        if (!sm.custom_id?.trim()) errors.push('Select Menu de texto necesita un Custom ID.');
+        if (!sm.options?.length) errors.push(t('val_sel_no_opts', sm.custom_id || '?'));
+        if (!sm.custom_id?.trim()) errors.push(t('val_sel_no_id'));
       });
       comps.filter(c => SEL_TYPES.includes(c.type) && c.type !== 3).forEach(s => {
-        if (!s.custom_id?.trim()) errors.push(`Select menu necesita un Custom ID.`);
+        if (!s.custom_id?.trim()) errors.push(t('val_dyn_sel_no_id'));
       });
       comps.filter(c => c.type === 2 && c.style !== 5).forEach(b => {
-        if (!b.custom_id?.trim()) errors.push(`Botón "${b.label || '?'}" necesita un Custom ID.`);
+        if (!b.custom_id?.trim()) errors.push(t('val_btn_no_id', b.label || '?'));
       });
       comps.filter(c => c.type === 2 && c.style === 5).forEach(b => {
-        if (!b.url?.trim()) errors.push(`Botón link "${b.label || '?'}" necesita una URL.`);
+        if (!b.url?.trim()) errors.push(t('val_btn_link_no_url', b.label || '?'));
       });
     }
     if (Array.isArray(node.components)) node.components.forEach(check);
@@ -137,6 +140,11 @@ function validateNodes(nodes: any[]): string[] {
 // ── component ─────────────────────────────────────────────────────────────────
 
 export default function Builder() {
+  return <I18nProvider><BuilderCore /></I18nProvider>;
+}
+
+function BuilderCore() {
+  const { t } = useT();
   const [state, setState]       = useState<BuilderState>(DEFAULT_STATE);
   const [activeMsg, setActiveMsg] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
@@ -153,6 +161,14 @@ export default function Builder() {
   const [comingSoonOpen, setComingSoonOpen] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
   const [securityWarning, setSecurityWarning] = useState<'token' | 'webhook' | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [diffOpen, setDiffOpen] = useState(false);
+  const [whAppearanceOpen, setWhAppearanceOpen] = useState(false);
+  const [whName, setWhName] = useState('');
+  const [whAvatar, setWhAvatar] = useState('');
+  const diffSnapshotRef = useRef<unknown>(null);
   const warnedRef = useRef(new Set<string>());
 
   // hydrate on mount
@@ -164,6 +180,10 @@ export default function Builder() {
     setWebhookUrl(cfg.webhookUrl);
     setSendMode(cfg.sendMode);
     setWelcomeOpen(true);
+    try {
+      const warned = JSON.parse(localStorage.getItem('dcb_security_warned') || '[]');
+      warnedRef.current = new Set(warned);
+    } catch {}
   }, []);
 
   // sync hash
@@ -171,6 +191,33 @@ export default function Builder() {
     if (typeof window === 'undefined') return;
     window.history.replaceState(null, '', '#' + encodeState(state));
   }, [state]);
+
+  // diff snapshot: capture state when messageId is first set
+  const prevMsgIdRef = useRef('');
+  useEffect(() => {
+    if (messageId && messageId !== prevMsgIdRef.current) {
+      diffSnapshotRef.current = JSON.parse(JSON.stringify(state.messages.map(m => ({ flags: 1 << 15, components: serialize(m as any[]) }))));
+    }
+    if (!messageId) diffSnapshotRef.current = null;
+    prevMsgIdRef.current = messageId;
+  }, [messageId]);
+
+  // keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') {
+        if (e.key === 'Enter') { e.preventDefault(); handleSend(); }
+        return;
+      }
+      if (e.key === 's') { e.preventDefault(); handleExport(); }
+      if (e.key === 'Enter') { e.preventDefault(); handleSend(); }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sending, state, sendMode, token, channelId, webhookUrl, threadId, messageId]);
 
   // fetch bot info when token changes (debounced)
   useEffect(() => {
@@ -220,19 +267,19 @@ export default function Builder() {
     setState(s => ({ ...s, messages: [...s.messages, []] }));
     setActiveMsg(state.messages.length); // next index
     setSelected(null);
-    addToast('Mensaje nuevo agregado', 'info');
+    addToast(t('toast_msg_added'), 'info');
   };
 
   const removeMessage = (idx: number) => {
-    if (state.messages.length <= 1) { addToast('Debe haber al menos un mensaje', 'warn'); return; }
-    if (!window.confirm(`¿Eliminar Mensaje ${idx + 1}?`)) return;
+    if (state.messages.length <= 1) { addToast(t('err_min_msg'), 'warn'); return; }
+    if (!window.confirm(t('confirm_del_msg', idx + 1))) return;
     setState(s => {
       const msgs = s.messages.filter((_, i) => i !== idx);
       return { ...s, messages: msgs };
     });
     setActiveMsg(prev => Math.min(prev, state.messages.length - 2));
     setSelected(null);
-    addToast(`Mensaje ${idx + 1} eliminado`, 'warn');
+    addToast(t('toast_msg_removed', idx + 1), 'warn');
   };
 
   // ── credential security warning ────────────────────────────────────────────
@@ -241,6 +288,7 @@ export default function Builder() {
     const isEmpty = type === 'token' ? !token : !webhookUrl;
     if (isEmpty && !warnedRef.current.has(type)) {
       warnedRef.current.add(type);
+      try { localStorage.setItem('dcb_security_warned', JSON.stringify([...warnedRef.current])); } catch {}
       setSecurityWarning(type);
     }
   };
@@ -269,7 +317,7 @@ export default function Builder() {
   const handleRemove = (id: string) => {
     updateNodes(removeNodeById(activeNodes as any[], id) as RootNode[]);
     if (selected === id) setSelected(null);
-    addToast('Componente eliminado', 'warn');
+    addToast(t('toast_removed'), 'warn');
   };
 
   const handleMove = (id: string, dir: -1 | 1) =>
@@ -318,13 +366,13 @@ export default function Builder() {
     const newNodes = insertAfter(activeNodes as any[]) ?? [...(activeNodes as any[]), cloned];
     updateNodes(newNodes as RootNode[]);
     setSelected(cloned._id);
-    addToast('Componente duplicado', 'info');
+    addToast(t('toast_duplicated'), 'info');
   }, [activeNodes, updateNodes]);
 
   const addRoot = (node: any, label?: string) => {
     updateNodes([...activeNodes, node]);
     setSelected(node._id);
-    if (label) addToast(`${label} agregado`, 'info');
+    if (label) addToast(t('toast_added', label), 'info');
   };
 
   // ── helpers ─────────────────────────────────────────────────────────────────
@@ -350,8 +398,8 @@ export default function Builder() {
 
   const handleRestore = async () => {
     const mid = parseMessageId(messageId);
-    if (!mid) { addToast('Ingresa un Message ID o URL', 'err'); return; }
-    setSending(true); setStatus({ msg: 'Cargando mensaje…', kind: 'info' });
+    if (!mid) { addToast(t('err_no_msg_id'), 'err'); return; }
+    setSending(true); setStatus({ msg: '…', kind: 'info' });
     try {
       let components: any[];
       if (sendMode === 'webhook') {
@@ -374,10 +422,10 @@ export default function Builder() {
         if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`);
         components = data.components ?? [];
       }
-      if (!components.length) { addToast('El mensaje no tiene componentes', 'warn'); return; }
+      if (!components.length) { addToast(t('err_no_components'), 'warn'); return; }
       updateNodes(addIds(components) as RootNode[]);
-      setStatus({ msg: '✓ Mensaje restaurado', kind: 'ok' });
-      addToast('Mensaje restaurado', 'ok');
+      setStatus({ msg: `✓ ${t('toast_restored')}`, kind: 'ok' });
+      addToast(t('toast_restored'), 'ok');
     } catch (e: any) {
       const msg = `Error al restaurar: ${e.message ?? e}`;
       setStatus({ msg, kind: 'err' }); addToast(msg, 'err');
@@ -388,14 +436,14 @@ export default function Builder() {
 
   const handleEdit = async () => {
     const mid = parseMessageId(messageId);
-    if (!mid) { addToast('Ingresa un Message ID o URL', 'err'); return; }
-    if (!activeNodes.length) { addToast('Agrega al menos un componente', 'err'); return; }
-    const errs = validateNodes(activeNodes as any[]);
+    if (!mid) { addToast(t('err_no_msg_id'), 'err'); return; }
+    if (!activeNodes.length) { addToast(t('err_no_components'), 'err'); return; }
+    const errs = validateNodes(activeNodes as any[], t);
     if (errs.length) { addToast(errs[0], 'err'); return; }
     if (sendMode === 'webhook' && hasDynamicSelects(activeNodes as any[])) {
-      addToast('Los selects de roles/usuarios/canales/menciones solo funcionan en modo Bot Token.', 'err'); return;
+      addToast(t('err_dynamic_sel'), 'err'); return;
     }
-    setSending(true); setStatus({ msg: `Editando Msg ${safeMsgIdx + 1}…`, kind: 'info' });
+    setSending(true); setStatus({ msg: '…', kind: 'info' });
     try {
       let res: Response;
       if (sendMode === 'webhook') {
@@ -431,8 +479,8 @@ export default function Builder() {
         const msg = `Error ${res.status}: ${errText}${errCode}${fieldHint}`;
         setStatus({ msg, kind: 'err' }); addToast(msg, 'err');
       } else {
-        setStatus({ msg: `✓ Mensaje editado (ID: ${data.id})`, kind: 'ok' });
-        addToast('Mensaje editado', 'ok');
+        setStatus({ msg: `✓ ${t('toast_edited')} (ID: ${data.id})`, kind: 'ok' });
+        addToast(t('toast_edited'), 'ok');
       }
     } catch (e: any) {
       const msg = `Error: ${e.message ?? e}`;
@@ -457,33 +505,33 @@ export default function Builder() {
     for (let i = 0; i < state.messages.length; i++) {
       const nodes = state.messages[i];
       if (!nodes.length) {
-        const msg = `Msg ${i + 1} está vacío — agrega componentes o elimínalo.`;
+        const msg = t('err_empty_msg', i + 1);
         setStatus({ msg: `⚠ ${msg}`, kind: 'err' }); addToast(msg, 'err'); return;
       }
-      const errs = validateNodes(nodes as any[]);
+      const errs = validateNodes(nodes as any[], t);
       if (errs.length) {
         const msg = state.messages.length > 1 ? `Msg ${i + 1}: ${errs[0]}` : errs[0];
         setStatus({ msg: `⚠ ${msg}`, kind: 'err' }); addToast(msg, 'err'); return;
       }
       if (sendMode === 'webhook' && hasDynamicSelects(nodes as any[])) {
-        const msg = `Msg ${i + 1}: los selects de roles/usuarios/canales/menciones solo funcionan en modo Bot Token.`;
+        const msg = state.messages.length > 1 ? `Msg ${i + 1}: ${t('err_dynamic_sel')}` : t('err_dynamic_sel');
         setStatus({ msg: `⚠ ${msg}`, kind: 'err' }); addToast(msg, 'err'); return;
       }
     }
 
     if (sendMode === 'bot') {
       if (!token || !channelId) {
-        setStatus({ msg: 'Falta el token o el channel ID.', kind: 'err' });
-        addToast('Falta el token o el channel ID', 'err'); return;
+        setStatus({ msg: t('err_empty_token'), kind: 'err' });
+        addToast(t('err_empty_token'), 'err'); return;
       }
     } else {
       if (!webhookUrl) {
-        setStatus({ msg: 'Falta la URL del webhook.', kind: 'err' });
-        addToast('Falta la URL del webhook', 'err'); return;
+        setStatus({ msg: t('err_empty_webhook'), kind: 'err' });
+        addToast(t('err_empty_webhook'), 'err'); return;
       }
       if (!webhookUrl.includes('discord.com/api/webhooks/') && !webhookUrl.includes('discordapp.com/api/webhooks/')) {
-        setStatus({ msg: 'URL de webhook inválida.', kind: 'err' });
-        addToast('URL de webhook inválida', 'err'); return;
+        setStatus({ msg: t('err_invalid_webhook'), kind: 'err' });
+        addToast(t('err_invalid_webhook'), 'err'); return;
       }
     }
 
@@ -500,6 +548,8 @@ export default function Builder() {
         if (sendMode === 'webhook') {
           const parsedUrl = buildWebhookUrl(webhookUrl);
           const discordBody: any = { flags: 1 << 15, components: serialize(nodes) };
+          if (whName.trim()) discordBody.username = whName.trim();
+          if (whAvatar.trim()) discordBody.avatar_url = whAvatar.trim();
           if (!state.allowedMentions) discordBody.allowed_mentions = { parse: [] };
           res = await fetch(parsedUrl.toString(), {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -530,10 +580,11 @@ export default function Builder() {
       }
 
       const okMsg = total > 1
-        ? `✓ ${total} mensajes enviados (IDs: ${sentIds.join(', ')})`
-        : `✓ Enviado (ID: ${sentIds[0]})`;
+        ? `✓ ${t('toast_sent_multi', total)} (IDs: ${sentIds.join(', ')})`
+        : `✓ ${t('toast_sent')} (ID: ${sentIds[0]})`;
       setStatus({ msg: okMsg, kind: 'ok' });
-      addToast(total > 1 ? `${total} mensajes enviados` : 'Mensaje enviado', 'ok');
+      addToast(total > 1 ? t('toast_sent_multi', total) : t('toast_sent'), 'ok');
+      sentIds.forEach(id => recordSend({ id: id + Date.now(), msgId: id, mode: sendMode }));
     } catch (e) {
       const msg = `Error de red: ${e}`;
       setStatus({ msg, kind: 'err' }); addToast(msg, 'err');
@@ -543,10 +594,10 @@ export default function Builder() {
   // ── misc ────────────────────────────────────────────────────────────────────
 
   const handleClear = () => {
-    const label = state.messages.length > 1 ? `¿Eliminar todos los componentes del Msg ${safeMsgIdx + 1}?` : '¿Eliminar todos los componentes?';
+    const label = state.messages.length > 1 ? t('confirm_clear_msg', safeMsgIdx + 1) : t('confirm_clear_one');
     if (!window.confirm(label)) return;
     updateNodes([]); setSelected(null);
-    addToast('Componentes eliminados', 'warn');
+    addToast(t('toast_cleared'), 'warn');
   };
 
   const handleExport = () => {
@@ -559,12 +610,45 @@ export default function Builder() {
     const a    = document.createElement('a');
     a.href = url; a.download = state.messages.length > 1 ? 'messages.json' : 'message.json'; a.click();
     URL.revokeObjectURL(url);
-    addToast('JSON exportado', 'ok');
+    addToast(t('toast_exported'), 'ok');
+  };
+
+  const handleImport = (payload: ImportedPayload) => {
+    // V2 import: accept either exported V2 JSON or a raw embed-style message JSON
+    // Try to read components[] from V2 export format
+    const src = Array.isArray(payload.components) ? payload.components : null;
+    if (src && src.length > 0) {
+      setState(s => {
+        const msgs = [...s.messages];
+        msgs[safeMsgIdx] = addIds(src) as RootNode[];
+        return { ...s, messages: msgs };
+      });
+      addToast(t('import_ok'), 'ok');
+    } else {
+      addToast(t('import_err'), 'err');
+    }
+  };
+
+  const previewRef = useRef<HTMLElement>(null);
+
+  const handleExportPng = () => {
+    const el = previewRef.current;
+    if (!el) return;
+    const w = window.open('', '_blank', 'width=860,height=700');
+    if (!w) return;
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Preview</title>
+<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-solid-rounded/css/uicons-solid-rounded.css"/>
+<style>*{margin:0;padding:0;box-sizing:border-box;}body{background:#313338;padding:24px;font-family:'Segoe UI','Noto Sans',sans-serif;}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head>
+<body id="print-preview">${el.innerHTML}</body></html>`);
+    w.document.close();
+    setTimeout(() => { w.focus(); w.print(); }, 500);
+    addToast(t('export_png'), 'info');
   };
 
   const handlePingsToggle = () => {
     setState(s => ({ ...s, allowedMentions: !s.allowedMentions }));
-    addToast(state.allowedMentions ? 'Pings desactivados' : 'Pings activados', 'info');
+    addToast(state.allowedMentions ? t('toast_pings_off') : t('toast_pings_on'), 'info');
   };
 
   const selectedNode = selected ? findNodeById(activeNodes as any[], selected) : null;
@@ -579,6 +663,11 @@ export default function Builder() {
       {/* ── Welcome modal ── */}
       {welcomeOpen && <WelcomeModal onClose={() => setWelcomeOpen(false)} />}
       {changelogOpen && <ChangelogModal onClose={() => setChangelogOpen(false)} />}
+      {historyOpen && <SendHistoryModal onClose={() => setHistoryOpen(false)} onLoadId={id => setMessageId(id)} />}
+      {templatesOpen && <TemplatesModal currentState={state} onLoad={s => setState(s as BuilderState)} onClose={() => setTemplatesOpen(false)} />}
+      {importOpen && <ImportModal onImport={handleImport} onClose={() => setImportOpen(false)} />}
+      {whAppearanceOpen && <WebhookAppearanceModal webhookUrl={webhookUrl} overrideName={whName} overrideAvatar={whAvatar} onSave={(n, a) => { setWhName(n); setWhAvatar(a); }} onClose={() => setWhAppearanceOpen(false)} />}
+      {diffOpen && <DiffModal original={diffSnapshotRef.current} current={state.messages.map(m => ({ flags: 1 << 15, components: serialize(m as any[]) }))} onClose={() => setDiffOpen(false)} />}
 
       {/* ── Security warning ── */}
       {securityWarning && (
@@ -589,37 +678,32 @@ export default function Builder() {
                 <IcAlertTriangle size={22} />
               </div>
               <div className="modal-header-text">
-                <h2 style={{ color: '#fcc419' }}>¿Realmente quieres hacer esto?</h2>
-                <p>{securityWarning === 'token' ? 'Token de bot de Discord' : 'URL de Webhook de Discord'}</p>
+                <h2 style={{ color: '#fcc419' }}>{t('security_title')}</h2>
+                <p>{securityWarning === 'token' ? t('security_label_token') : t('security_label_webhook')}</p>
               </div>
             </div>
             <div className="modal-body">
               <div className="tutorial-step">
                 <div className="tutorial-step-desc">
-                  {securityWarning === 'token' ? (
-                    <>Estás a punto de ingresar el <strong style={{ color: '#dbdee1' }}>token de tu bot</strong>. Esta credencial permite <strong style={{ color: '#fcc419' }}>controlar el bot completamente</strong>. Nunca compartas tu token con nadie.</>
-                  ) : (
-                    <>Estás a punto de ingresar una <strong style={{ color: '#dbdee1' }}>URL de webhook</strong>. Esta URL permite <strong style={{ color: '#fcc419' }}>publicar mensajes en el canal vinculado</strong> sin autenticación adicional.</>
-                  )}
+                  {securityWarning === 'token' ? t('security_desc_token') : t('security_desc_webhook')}
                 </div>
                 <div className="security-tip">
-                  <Fi name="lock" /> Tu credencial se guarda <strong>localmente en tu navegador</strong> (localStorage) y se envía directamente a Discord — nunca a servidores externos. Esta app corre en local.
+                  <Fi name="lock" /> {t('security_local')}
                 </div>
               </div>
             </div>
             <div className="modal-footer">
               <button className="btn-secondary" style={{ fontSize: 12 }} onClick={() => {
-                // Cancelar: cerrar, quitar del set (para que vuelva a aparecer), y desenfocar el input
                 if (securityWarning) warnedRef.current.delete(securityWarning);
                 setSecurityWarning(null);
                 (document.activeElement as HTMLElement)?.blur();
               }}>
-                Cancelar
+                {t('cancel')}
               </button>
               <button
                 style={{ background: '#b7950b', color: '#fff', fontSize: 12, padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontWeight: 600 }}
                 onClick={() => setSecurityWarning(null)}>
-                Sí, continuar →
+                {t('security_confirm')}
               </button>
             </div>
           </div>
@@ -633,23 +717,23 @@ export default function Builder() {
             <div className="modal-header">
               <div className="modal-header-icon"><IcClock size={22} /></div>
               <div className="modal-header-text">
-                <h2>Próximamente</h2>
-                <p>Embeds normales de Discord</p>
+                <h2>{t('cs_title')}</h2>
+                <p>{t('cs_sub')}</p>
               </div>
             </div>
             <div className="modal-body">
               <div className="tutorial-step">
                 <div className="tutorial-step-desc">
-                  El soporte para <strong style={{ color: '#dbdee1' }}>embeds normales</strong> (tipo 0, con campos, imagen, footer, author…) está en desarrollo.
+                  {t('cs_desc')}
                 </div>
                 <div className="tutorial-tip">
-                  <Fi name="hammer" /> Por ahora usa <strong>Components V2</strong> (Containers, Secciones, Galerías, etc.) que ofrecen mucho más control visual.
+                  <Fi name="hammer" /> {t('cs_tip')}
                 </div>
               </div>
             </div>
             <div className="modal-footer">
               <button className="btn-primary" style={{ fontSize: 12, padding: '6px 16px' }} onClick={() => setComingSoonOpen(false)}>
-                Entendido
+                {t('cs_ok')}
               </button>
             </div>
           </div>
@@ -674,33 +758,47 @@ export default function Builder() {
 
         <div className="spacer" />
 
-        <button className="btn-secondary btn-coming-soon" title="Embeds normales — próximamente" onClick={() => setComingSoonOpen(true)}>
-          <IcEmbed size={13} /> Embed normal
-          <span className="badge-soon">Pronto</span>
+        <button className="btn-secondary" title={t('embed_normal_btn')} onClick={() => window.location.href = '/embed'}>
+          <IcEmbed size={13} /> {t('embed_normal_btn')}
+        </button>
+        <LangSwitch />
+        <button className="btn-secondary" title={t('copy_link')} onClick={() => { navigator.clipboard.writeText(window.location.href); addToast(t('copy_link_ok'), 'ok'); }} style={{ padding: '6px 10px', fontSize: 13 }}>
+          <Fi name="link" />
+        </button>
+        <button className="btn-secondary" title={t('import_title')} onClick={() => setImportOpen(true)} style={{ padding: '6px 10px', fontSize: 13 }}>
+          <Fi name="upload" />
+        </button>
+        <button className="btn-secondary" title={t('tmpl_title')} onClick={() => setTemplatesOpen(true)} style={{ padding: '6px 10px', fontSize: 13 }}>
+          <Fi name="bookmark" />
+        </button>
+        <button className="btn-secondary" title={t('hist_title')} onClick={() => setHistoryOpen(true)} style={{ padding: '6px 10px', fontSize: 13 }}>
+          <Fi name="clock" />
         </button>
         <button className="btn-secondary" title="Changelog" onClick={() => setChangelogOpen(true)} style={{ padding: '6px 10px', fontSize: 13 }}>
           <Fi name="list" />
         </button>
-        <button className="btn-secondary" title="Ver tutorial / info" onClick={() => setWelcomeOpen(true)} style={{ padding: '6px 10px' }}>
+        <button className="btn-secondary" title="Help / Ayuda" onClick={() => setWelcomeOpen(true)} style={{ padding: '6px 10px' }}>
           <IcHelpCircle size={14} />
         </button>
         <button className={`btn-toggle ${state.allowedMentions ? 'on' : 'off'}`}
-          title={state.allowedMentions ? 'Pings ON — clic para desactivar' : 'Pings OFF — clic para activar'}
           onClick={handlePingsToggle}>
-          {state.allowedMentions ? <><IcBell size={13} /> Pings ON</> : <><IcBellOff size={13} /> Pings OFF</>}
+          {state.allowedMentions ? <><IcBell size={13} /> {t('pings_on')}</> : <><IcBellOff size={13} /> {t('pings_off')}</>}
         </button>
-        <button className="btn-secondary" onClick={handleExport} title="Exportar JSON">
-          <IcDownload size={13} /> Exportar
+        <button className="btn-secondary" onClick={handleExportPng} title={t('export_png')} style={{ padding: '6px 10px' }}>
+          <Fi name="picture" />
         </button>
-        <button className="btn-danger" onClick={handleClear} title="Limpiar todo">
-          <IcTrash size={13} /> Limpiar
+        <button className="btn-secondary" onClick={handleExport} title={t('export_btn')}>
+          <IcDownload size={13} /> {t('export_btn')}
+        </button>
+        <button className="btn-danger" onClick={handleClear} title={t('clear_btn')}>
+          <IcTrash size={13} /> {t('clear_btn')}
         </button>
         {(() => {
           const total = countTextChars(activeNodes as any[]);
           const over = total > TEXT_TOTAL_LIMIT;
           const warn = !over && total > TEXT_TOTAL_LIMIT * 0.85;
           return (
-            <span title={`Texto en Msg ${safeMsgIdx + 1} (límite Discord: ${TEXT_TOTAL_LIMIT} chars)`} style={{
+            <span title={t('char_counter_title', safeMsgIdx + 1, TEXT_TOTAL_LIMIT)} style={{
               fontSize: 11, color: over ? '#ed4245' : warn ? '#fcc419' : '#5c5f66',
               fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
             }}>
@@ -710,7 +808,7 @@ export default function Builder() {
           );
         })()}
         <button className="btn-success btn-send" onClick={handleSend} disabled={sending}>
-          {sending ? 'Enviando…' : <><IcSend size={13} /> Enviar</>}
+          {sending ? t('sending_btn') : <><IcSend size={13} /> {t('send_btn')}</>}
         </button>
       </header>
 
@@ -721,74 +819,90 @@ export default function Builder() {
             {/* Send mode toggle */}
             <div className="send-mode-toggle">
               <button className={`mode-btn ${sendMode === 'bot' ? 'active' : ''}`} onClick={() => handleSendMode('bot')}>
-                <Fi name="robot" style={{ marginRight: 5 }} /> Bot Token
+                <Fi name="robot" style={{ marginRight: 5 }} /> {t('bot_token_mode')}
               </button>
               <button className={`mode-btn ${sendMode === 'webhook' ? 'active' : ''}`} onClick={() => handleSendMode('webhook')}>
-                <Fi name="link" style={{ marginRight: 5 }} /> Webhook
+                <Fi name="link" style={{ marginRight: 5 }} /> {t('webhook_mode')}
               </button>
             </div>
 
             {sendMode === 'bot' ? (
               <>
                 <div className="field">
-                  <label>Bot Token</label>
+                  <label>{t('bot_token_label')}</label>
                   <input type="password" value={token}
                     onFocus={() => handleCredentialFocus('token')}
                     onChange={e => handleToken(e.target.value)}
                     placeholder="Bot token..." />
                 </div>
                 <div className="field">
-                  <label>Channel ID</label>
+                  <label>{t('channel_id')}</label>
                   <input value={channelId} onChange={e => handleChannel(e.target.value)} placeholder="1234567890..." />
                 </div>
               </>
             ) : (
               <div className="field">
-                <label>Webhook URL</label>
+                <label>{t('webhook_url')}</label>
                 <input type="password" value={webhookUrl}
                   onFocus={() => handleCredentialFocus('webhook')}
                   onChange={e => handleWebhook(e.target.value)}
                   placeholder="https://discord.com/api/webhooks/..." />
-                <small style={{ marginTop: 2, color: '#949ba4' }}>El preview del bot no aparece en modo webhook.</small>
+                <WebhookManager currentUrl={webhookUrl} onSelect={url => handleWebhook(url)} />
+                <button onClick={() => setWhAppearanceOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(88,101,242,.08)', border: '1px solid rgba(88,101,242,.2)', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', width: '100%', textAlign: 'left', marginTop: 4 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, background: '#5865f2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 700, overflow: 'hidden' }}>
+                    {(whAvatar || botInfo?.avatar)
+                      ? <img src={whAvatar || botInfo?.avatar || ''} style={{ width: 28, height: 28, objectFit: 'cover' }} alt="" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                      : (whName || botInfo?.username || 'W')[0]?.toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#dbdee1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{whName || botInfo?.username || 'Webhook'}</div>
+                    <div style={{ fontSize: 10, color: '#72767d' }}>{t('wh_appearance_btn')} →</div>
+                  </div>
+                </button>
               </div>
             )}
 
             {/* Thread ID + Message ID */}
             <div style={{ display: 'flex', gap: 8 }}>
               <div className="field" style={{ flex: 1, minWidth: 0 }}>
-                <label style={{ fontSize: 11 }}>THREAD ID <span style={{ color: '#4e5058', fontWeight: 400 }}>· opcional</span></label>
-                <input value={threadId} onChange={e => setThreadId(e.target.value.trim())} placeholder="ID del hilo..." />
+                <label style={{ fontSize: 11 }}>{t('thread_id')} <span style={{ color: '#4e5058', fontWeight: 400 }}>· {t('optional')}</span></label>
+                <input value={threadId} onChange={e => setThreadId(e.target.value.trim())} placeholder={t('thread_placeholder')} />
               </div>
               <div className="field" style={{ flex: 1, minWidth: 0 }}>
-                <label style={{ fontSize: 11 }}>MESSAGE ID <span style={{ color: '#4e5058', fontWeight: 400 }}>· editar</span></label>
-                <input value={messageId} onChange={e => setMessageId(e.target.value.trim())} placeholder="ID o URL..." />
+                <label style={{ fontSize: 11 }}>{t('message_id')} <span style={{ color: '#4e5058', fontWeight: 400 }}>· {t('edit_hint')}</span></label>
+                <input value={messageId} onChange={e => setMessageId(e.target.value.trim())} placeholder={t('msg_placeholder')} />
               </div>
             </div>
             {messageId && (
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="btn-secondary" style={{ flex: 1, fontSize: 12 }} onClick={handleRestore} disabled={sending}>
-                  ↩ Restaurar
+                  {t('restore_btn')}
                 </button>
                 <button className="btn-secondary" style={{ flex: 1, fontSize: 12, color: '#57f287', borderColor: 'rgba(87,242,135,.4)' }} onClick={handleEdit} disabled={sending}>
-                  ✏ Editar mensaje
+                  {t('edit_btn')}
                 </button>
               </div>
+            )}
+            {!!(messageId && diffSnapshotRef.current != null) && (
+              <button onClick={() => setDiffOpen(true)} style={{ background: 'rgba(255,220,0,.06)', border: '1px solid rgba(255,220,0,.2)', borderRadius: 4, color: '#fcc419', cursor: 'pointer', fontSize: 11, fontWeight: 600, padding: '4px 10px', width: '100%' }}>
+                ⚡ {t('diff_title')}
+              </button>
             )}
           </div>
 
           <div className="toolbar">
-            <span className="toolbar-label">Agregar al root</span>
-            <button className="btn-secondary" onClick={() => addRoot(newContainer(), 'Container')} title="Container"><Fi name="box" /> Container</button>
-            <button className="btn-secondary" onClick={() => addRoot(newActionRow(), 'Action Row')} title="Action Row"><IcGrid size={12} /> Row</button>
-            <button className="btn-secondary" onClick={() => addRoot(newText(), 'Texto')} title="Texto"><IcText size={12} /> Texto</button>
-            <button className="btn-secondary" onClick={() => addRoot(newSection(), 'Section')} title="Section"><IcLayout size={12} /> Section</button>
-            <button className="btn-secondary" onClick={() => addRoot(newGallery(), 'Gallery')} title="Gallery"><IcImages size={12} /> Gallery</button>
-            <button className="btn-secondary" onClick={() => addRoot(newDivider(), 'Divider')} title="Divider"><IcMinus size={12} /> Divider</button>
+            <span className="toolbar-label">{t('add_to_root')}</span>
+            <button className="btn-secondary" onClick={() => addRoot(newContainer(), 'Container')} title="Container"><Fi name="box" /> {t('comp_container')}</button>
+            <button className="btn-secondary" onClick={() => addRoot(newActionRow(), 'Action Row')} title="Action Row"><IcGrid size={12} /> {t('comp_row')}</button>
+            <button className="btn-secondary" onClick={() => addRoot(newText(), t('comp_text'))} title={t('comp_text')}><IcText size={12} /> {t('comp_text')}</button>
+            <button className="btn-secondary" onClick={() => addRoot(newSection(), 'Section')} title="Section"><IcLayout size={12} /> {t('comp_section')}</button>
+            <button className="btn-secondary" onClick={() => addRoot(newGallery(), 'Gallery')} title="Gallery"><IcImages size={12} /> {t('comp_gallery')}</button>
+            <button className="btn-secondary" onClick={() => addRoot(newDivider(), 'Divider')} title="Divider"><IcMinus size={12} /> {t('comp_divider')}</button>
           </div>
 
           {/* Message tabs */}
           <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #1e1f22', background: '#2b2d31' }}>
-            <span style={{ fontSize: 10, color: '#4e5058', fontWeight: 700, textTransform: 'uppercase', padding: '0 8px', letterSpacing: '.05em', flexShrink: 0 }}>Mensajes</span>
+            <span style={{ fontSize: 10, color: '#4e5058', fontWeight: 700, textTransform: 'uppercase', padding: '0 8px', letterSpacing: '.05em', flexShrink: 0 }}>{t('messages_label')}</span>
             <div style={{ display: 'flex', flex: 1, gap: 2, overflow: 'auto', padding: '4px 4px 0' }}>
               {state.messages.map((m, i) => (
                 <button key={i}
@@ -799,13 +913,13 @@ export default function Builder() {
                     color: i === safeMsgIdx ? '#dbdee1' : '#72767d',
                     whiteSpace: 'nowrap', flexShrink: 0,
                   }}>
-                  Msg {i + 1}
+                  {`Msg ${i + 1}`}
                   {m.length > 0 && <span style={{ marginLeft: 5, fontSize: 9, opacity: .6 }}>{m.length}</span>}
                 </button>
               ))}
             </div>
             <div style={{ display: 'flex', gap: 2, padding: '0 4px', flexShrink: 0 }}>
-              <button onClick={addMessage} title="Agregar nuevo mensaje"
+              <button onClick={addMessage} title={t('add_message_btn')}
                 style={{ padding: '4px 9px', fontSize: 14, border: 'none', cursor: 'pointer', background: 'transparent', color: '#57f287', fontWeight: 700, lineHeight: 1 }}>
                 +
               </button>
@@ -818,11 +932,11 @@ export default function Builder() {
             </div>
           </div>
 
-          <div className="panel-header" style={{ marginTop: 0 }}>Árbol · Msg {safeMsgIdx + 1}</div>
+          <div className="panel-header" style={{ marginTop: 0 }}>{t('panel_tree', safeMsgIdx + 1)}</div>
           {sendMode === 'webhook' && activeNodes.some((n: any) => n.type === 1 || n.components?.some((c: any) => c.type === 1)) && (
             <div style={{ margin: '0 6px 4px', padding: '7px 10px', background: 'rgba(255,200,0,.07)', border: '1px solid rgba(255,200,0,.25)', borderRadius: 6, fontSize: 11.5, color: '#fcc419', lineHeight: 1.5 }}>
               <Fi name="triangle-warning" style={{ marginRight: 5 }} />
-              Los <strong>Action Rows</strong> necesitan <strong>Bot Token</strong> para funcionar. Los selects de roles/usuarios/canales/menciones no se pueden enviar via webhook.
+              {t('row_webhook_warn')}
             </div>
           )}
           <div className="panel-body">
@@ -839,13 +953,13 @@ export default function Builder() {
         </aside>
 
         {/* ── CENTER ── */}
-        <main className="panel-center">
-          <Preview nodes={activeNodes} selected={selected} onSelect={setSelected} botInfo={botInfo} />
+        <main ref={previewRef} className="panel-center">
+          <Preview nodes={activeNodes} selected={selected} onSelect={setSelected} botInfo={sendMode==='webhook'&&(whName||whAvatar)?{username:whName||botInfo?.username||'Webhook',avatar:whAvatar||botInfo?.avatar||null}:botInfo} />
         </main>
 
         {/* ── RIGHT ── */}
         <aside className="panel-right">
-          <div className="panel-header">Propiedades</div>
+          <div className="panel-header">{t('panel_props')}</div>
           <div className="panel-body">
             <PropertyEditor node={selectedNode} onChange={handleChange} />
           </div>
@@ -854,12 +968,12 @@ export default function Builder() {
 
       {/* Status bar */}
       <div className="status-bar">
-        <span className={`msg ${status?.kind ?? ''}`}>{status?.msg ?? 'Listo'}</span>
+        <span className={`msg ${status?.kind ?? ''}`}>{status?.msg ?? t('status_ready')}</span>
         <small style={{ background: sendMode === 'webhook' ? 'rgba(88,101,242,.15)' : 'transparent', padding: '1px 6px', borderRadius: 4 }}>
           {sendMode === 'bot' ? <><Fi name="robot" style={{ marginRight: 4 }} /> Bot</> : <><Fi name="link" style={{ marginRight: 4 }} /> Webhook</>}
         </small>
-        <small>Msg {safeMsgIdx + 1}/{state.messages.length} · {activeNodes.length} comp.</small>
-        <small>{state.allowedMentions ? <><IcBell size={11} /> Pings ON</> : <><IcBellOff size={11} /> Pings OFF</>}</small>
+        <small>{t('status_msg', safeMsgIdx + 1, state.messages.length, activeNodes.length)}</small>
+        <small>{state.allowedMentions ? <><IcBell size={11} /> {t('pings_on')}</> : <><IcBellOff size={11} /> {t('pings_off')}</>}</small>
       </div>
     </div>
   );
