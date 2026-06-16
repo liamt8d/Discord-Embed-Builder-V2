@@ -631,19 +631,16 @@ function BuilderCore() {
 
   const previewRef = useRef<HTMLElement>(null);
 
-  const handleExportPng = () => {
+  const handleExportPng = async () => {
     const el = previewRef.current;
     if (!el) return;
-    const w = window.open('', '_blank', 'width=860,height=700');
-    if (!w) return;
-    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Preview</title>
-<link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-solid-rounded/css/uicons-solid-rounded.css"/>
-<style>*{margin:0;padding:0;box-sizing:border-box;}body{background:#313338;padding:24px;font-family:'Segoe UI','Noto Sans',sans-serif;}
-@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head>
-<body id="print-preview">${el.innerHTML}</body></html>`);
-    w.document.close();
-    setTimeout(() => { w.focus(); w.print(); }, 500);
     addToast(t('export_png'), 'info');
+    const h2c = (await import('html2canvas')).default;
+    const canvas = await h2c(el, { backgroundColor: '#313338', scale: 2, useCORS: true, logging: false });
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = 'discord-preview.png';
+    a.click();
   };
 
   const handlePingsToggle = () => {

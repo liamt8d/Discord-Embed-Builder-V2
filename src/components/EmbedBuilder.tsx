@@ -837,17 +837,15 @@ function EmbedBuilderCore(){
     setProgress('');setSending(false);
   };
 
-  const handleExportPng=()=>{
+  const handleExportPng=async()=>{
     const el=previewRef.current;if(!el)return;
-    const w=window.open('','_blank','width=800,height=600');if(!w)return;
-    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Preview</title><style>
-      *{margin:0;padding:0;box-sizing:border-box;}
-      body{background:#313338;padding:24px;font-family:'Segoe UI',sans-serif;}
-      @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
-    </style></head><body id="print-preview">${el.innerHTML}</body></html>`);
-    w.document.close();
-    setTimeout(()=>{w.focus();w.print();},400);
     addToast(t('export_png'),'info');
+    const h2c=(await import('html2canvas')).default;
+    const canvas=await h2c(el,{backgroundColor:'#313338',scale:2,useCORS:true,logging:false});
+    const a=document.createElement('a');
+    a.href=canvas.toDataURL('image/png');
+    a.download='discord-preview.png';
+    a.click();
   };
 
   const handleExport=()=>{
