@@ -154,6 +154,7 @@ function BuilderCore() {
   const [sendMode, setSendMode] = useState<SendMode>('bot');
   const [threadId, setThreadId]   = useState('');
   const [messageId, setMessageId] = useState('');
+  const [replyId, setReplyId]     = useState('');
   const [botInfo, setBotInfo]   = useState<BotInfo | null>(null);
   const [status, setStatus]     = useState<{ msg: string; kind: 'ok' | 'err' | 'info' } | null>(null);
   const [sending, setSending]   = useState(false);
@@ -551,6 +552,7 @@ function BuilderCore() {
           if (whName.trim()) discordBody.username = whName.trim();
           if (whAvatar.trim()) discordBody.avatar_url = whAvatar.trim();
           if (!state.allowedMentions) discordBody.allowed_mentions = { parse: [] };
+          if (replyId.trim()) discordBody.message_reference = { message_id: replyId.trim(), fail_if_not_exists: false };
           res = await fetch(parsedUrl.toString(), {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(discordBody),
@@ -558,7 +560,7 @@ function BuilderCore() {
         } else {
           res = await fetch('/api/send', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ components: serialize(nodes), channelId: threadId || channelId, token, allowedMentions: state.allowedMentions }),
+            body: JSON.stringify({ components: serialize(nodes), channelId: threadId || channelId, token, allowedMentions: state.allowedMentions, replyId: replyId.trim() || undefined }),
           });
         }
 
@@ -870,6 +872,12 @@ function BuilderCore() {
                 <input value={messageId} onChange={e => setMessageId(e.target.value.trim())} placeholder={t('msg_placeholder')} />
               </div>
             </div>
+            {!messageId && (
+              <div className="field">
+                <label style={{ fontSize: 11 }}>{t('reply_to')} <span style={{ color: '#4e5058', fontWeight: 400 }}>· {t('optional')}</span></label>
+                <input value={replyId} onChange={e => setReplyId(e.target.value.trim())} placeholder={t('reply_placeholder')} />
+              </div>
+            )}
             {messageId && (
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="btn-secondary" style={{ flex: 1, fontSize: 12 }} onClick={handleRestore} disabled={sending}>

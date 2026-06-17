@@ -9,15 +9,17 @@ export const POST: APIRoute = async ({ request }) => {
       channelId: string;
       token: string;
       allowedMentions: boolean;
+      replyId?: string;
     };
 
-    const { components, channelId, token, allowedMentions } = body;
+    const { components, channelId, token, allowedMentions, replyId } = body;
     if (!token?.trim() || !channelId?.trim() || !components?.length) {
       return new Response(JSON.stringify({ error: 'Faltan: token, channelId o components.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
 
     const payload: Record<string, unknown> = { flags: 1 << 15, components };
     if (!allowedMentions) payload.allowed_mentions = { parse: [] };
+    if (replyId?.trim()) payload.message_reference = { message_id: replyId.trim(), fail_if_not_exists: false };
 
     const res = await fetch(`https://discord.com/api/v10/channels/${channelId.trim()}/messages`, {
       method: 'POST',

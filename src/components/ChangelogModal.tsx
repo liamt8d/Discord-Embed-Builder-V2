@@ -9,6 +9,19 @@ type Entry = { version: string; date: string; changes: [string, string][] };
 const CL: Record<string, Entry[]> = {
   es: [
     {
+      version: '1.3.1', date: '2026-06-17',
+      changes: [
+        ['Responder mensaje', 'Campo "REPLY TO" en ambos builders: pegá el ID del mensaje a responder y el mensaje se envía como respuesta de Discord. Se oculta al editar.'],
+        ['Export PNG real', 'El botón PNG ahora descarga directamente un archivo .png (2x) usando html2canvas — ya no abre la impresora/PDF.'],
+        ['Alerta de credenciales persistente', 'La alerta de seguridad al escribir token/webhook ya no vuelve a aparecer al recargar la página (se guarda en localStorage).'],
+        ['Icono de alerta corregido', 'El ícono de la ventana de alerta de credenciales ahora es amarillo en vez de azul.'],
+        ['WelcomeModal multidioma', 'El tutorial de bienvenida ahora está traducido a ES/EN/PT y muestra la versión 1.3.0.'],
+        ['Changelog multidioma', 'El historial de versiones ahora está disponible en ES/EN/PT.'],
+        ['Embed Builder habilitado en V2', 'El botón "Embed normal" en el builder V2 ahora navega al Embed Builder en vez de mostrar "Próximamente".'],
+        ['Preview del bot en Embed Builder', 'En modo Bot Token, el preview ahora carga automáticamente el avatar y nombre del bot desde el token.'],
+      ],
+    },
+    {
       version: '1.3.0', date: '2026-06-15',
       changes: [
         ['Embed Builder (normal)', 'Nuevo builder dedicado para mensajes con embeds: content, hasta 10 embeds con todos los campos, link buttons, y webhook/bot mode.'],
@@ -77,6 +90,19 @@ const CL: Record<string, Entry[]> = {
   ],
   en: [
     {
+      version: '1.3.1', date: '2026-06-17',
+      changes: [
+        ['Reply to message', '"REPLY TO" field in both builders: paste the target message ID and the message is sent as a Discord reply. Hidden when editing.'],
+        ['Real PNG export', 'The PNG button now directly downloads a .png file (2x) using html2canvas — no more print dialog or PDF.'],
+        ['Persistent credential warning', 'The security alert when entering a token/webhook no longer reappears after reloading the page (saved in localStorage).'],
+        ['Warning icon color fixed', 'The credential warning modal icon is now yellow instead of blue.'],
+        ['WelcomeModal multilingual', 'The welcome tutorial is now translated into ES/EN/PT and shows version 1.3.0.'],
+        ['Changelog multilingual', 'The version history is now available in ES/EN/PT.'],
+        ['Embed Builder enabled in V2', 'The "Normal Embed" button in the V2 builder now navigates to the Embed Builder instead of showing "Coming Soon".'],
+        ['Bot preview in Embed Builder', 'In Bot Token mode, the preview now auto-loads the bot\'s avatar and name from the token.'],
+      ],
+    },
+    {
       version: '1.3.0', date: '2026-06-15',
       changes: [
         ['Embed Builder (normal)', 'New dedicated builder for embed messages: content, up to 10 embeds with all fields, link buttons, and webhook/bot mode.'],
@@ -144,6 +170,19 @@ const CL: Record<string, Entry[]> = {
     },
   ],
   pt: [
+    {
+      version: '1.3.1', date: '2026-06-17',
+      changes: [
+        ['Responder mensagem', 'Campo "RESPONDER A" em ambos os builders: cole o ID da mensagem alvo e a mensagem é enviada como resposta do Discord. Oculto ao editar.'],
+        ['Export PNG real', 'O botão PNG agora baixa diretamente um arquivo .png (2x) usando html2canvas — sem mais diálogo de impressão ou PDF.'],
+        ['Alerta de credenciais persistente', 'O alerta de segurança ao inserir token/webhook não reaparece mais ao recarregar a página (salvo no localStorage).'],
+        ['Ícone de alerta corrigido', 'O ícone da janela de alerta de credenciais agora é amarelo em vez de azul.'],
+        ['WelcomeModal multilíngue', 'O tutorial de boas-vindas agora está traduzido para ES/EN/PT e mostra a versão 1.3.0.'],
+        ['Changelog multilíngue', 'O histórico de versões agora está disponível em ES/EN/PT.'],
+        ['Embed Builder habilitado no V2', 'O botão "Embed normal" no builder V2 agora navega para o Embed Builder em vez de mostrar "Em breve".'],
+        ['Preview do bot no Embed Builder', 'No modo Bot Token, o preview agora carrega automaticamente o avatar e nome do bot a partir do token.'],
+      ],
+    },
     {
       version: '1.3.0', date: '2026-06-15',
       changes: [

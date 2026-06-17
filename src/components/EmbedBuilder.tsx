@@ -665,6 +665,7 @@ function EmbedBuilderCore(){
   const [whAvatar,setWhAvatar]=useState('');
   const [threadId,setThreadId]=useState('');
   const [messageId,setMessageId]=useState('');
+  const [replyId,setReplyId]=useState('');
   const [sending,setSending]=useState(false);
   const [progress,setProgress]=useState('');
   const [status,setStatus]=useState<{msg:string;kind:'ok'|'err'|'info'}|null>(null);
@@ -821,11 +822,13 @@ function EmbedBuilderCore(){
             const u=new URL(webhookUrl);u.searchParams.set('wait','true');
             if(threadId.trim())u.searchParams.set('thread_id',threadId.trim());
             if(messageId)u.pathname=u.pathname+`/messages/${messageId}`;
-            res=await fetch(u.toString(),{method:messageId?'PATCH':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+            const whBody:any={...payload};
+            if(replyId.trim()&&!messageId)whBody.message_reference={message_id:replyId.trim(),fail_if_not_exists:false};
+            res=await fetch(u.toString(),{method:messageId?'PATCH':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(whBody)});
           }catch{addToast(t('eb_err_webhook_invalid'),'err');setSending(false);return;}
         }else{
           if(!token||!channelId){addToast(t('eb_err_creds'),'err');setSending(false);return;}
-          res=await fetch('/api/embed-send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,token,channelId,threadId:threadId||undefined,messageId:messageId||undefined})});
+          res=await fetch('/api/embed-send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,token,channelId,threadId:threadId||undefined,messageId:messageId||undefined,replyId:replyId.trim()||undefined})});
         }
         const data=await res.json() as any;
         if(!res.ok){const msg=getErr({...data,status:res.status});setStatus({msg,kind:'err'});addToast(msg,'err');setSending(false);return;}
@@ -1000,6 +1003,12 @@ function EmbedBuilderCore(){
                 <input value={messageId}onChange={e=>setMessageId(e.target.value.trim())}placeholder={t('msg_placeholder')}/>
               </div>
             </Row2>
+            {!messageId&&(
+              <div className="field">
+                <label style={{display:'flex',alignItems:'center',gap:5}}>{t('reply_to')} <span style={{color:'#3f4147',fontWeight:400,textTransform:'none',fontSize:10}}>{t('optional')}</span></label>
+                <input value={replyId} onChange={e=>setReplyId(e.target.value.trim())} placeholder={t('reply_placeholder')}/>
+              </div>
+            )}
             {!!(messageId&&diffSnapshotRef.current!=null)&&(
               <button onClick={()=>setDiffOpen(true)}style={{background:'rgba(255,220,0,.06)',border:'1px solid rgba(255,220,0,.2)',borderRadius:4,color:'#fcc419',cursor:'pointer',fontSize:11,fontWeight:600,padding:'4px 10px',width:'100%'}}>
                 ⚡ {t('diff_title')}

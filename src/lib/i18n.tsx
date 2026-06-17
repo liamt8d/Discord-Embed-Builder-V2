@@ -18,6 +18,7 @@ const T = {
     webhook_no_preview: 'El preview del bot no aparece en modo webhook.',
     thread_id: 'THREAD ID', message_id: 'MESSAGE ID',
     thread_placeholder: 'ID del hilo…', msg_placeholder: 'ID o URL…',
+    reply_to: 'RESPONDER A', reply_placeholder: 'ID del mensaje a responder…',
     restore_btn: '↩ Restaurar', edit_btn: '✏ Editar mensaje',
 
     // Header – V2
@@ -276,6 +277,7 @@ const T = {
     webhook_no_preview: 'Bot preview is not available in webhook mode.',
     thread_id: 'THREAD ID', message_id: 'MESSAGE ID',
     thread_placeholder: 'Thread ID…', msg_placeholder: 'ID or URL…',
+    reply_to: 'REPLY TO', reply_placeholder: 'Message ID to reply to…',
     restore_btn: '↩ Restore', edit_btn: '✏ Edit message',
 
     embed_normal_btn: 'Normal Embed', badge_soon: 'Soon',
@@ -495,6 +497,7 @@ const T = {
     webhook_no_preview: 'O preview do bot não aparece no modo webhook.',
     thread_id: 'THREAD ID', message_id: 'MESSAGE ID',
     thread_placeholder: 'ID da thread…', msg_placeholder: 'ID ou URL…',
+    reply_to: 'RESPONDER A', reply_placeholder: 'ID da mensagem para responder…',
     restore_btn: '↩ Restaurar', edit_btn: '✏ Editar mensagem',
 
     embed_normal_btn: 'Embed normal', badge_soon: 'Em breve',
