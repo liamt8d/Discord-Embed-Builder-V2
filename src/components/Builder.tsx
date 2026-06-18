@@ -147,6 +147,7 @@ function BuilderCore() {
   const { t } = useT();
   const [state, setState]       = useState<BuilderState>(DEFAULT_STATE);
   const [activeMsg, setActiveMsg] = useState(0);
+  const [disabledMsgs, setDisabledMsgs] = useState<Set<number>>(new Set());
   const [selected, setSelected] = useState<string | null>(null);
   const [token, setToken]       = useState('');
   const [channelId, setChannelId] = useState('');
@@ -279,6 +280,11 @@ function BuilderCore() {
       return { ...s, messages: msgs };
     });
     setActiveMsg(prev => Math.min(prev, state.messages.length - 2));
+    setDisabledMsgs(prev => {
+      const next = new Set<number>();
+      prev.forEach(i => { if (i < idx) next.add(i); else if (i > idx) next.add(i - 1); });
+      return next;
+    });
     setSelected(null);
     addToast(t('toast_msg_removed', idx + 1), 'warn');
   };
@@ -501,9 +507,19 @@ function BuilderCore() {
     return nodes.some(scan);
   };
 
+  const toggleDisabledMsg = (i: number) => {
+    setDisabledMsgs(prev => {
+      const next = new Set(prev);
+      next.has(i) ? next.delete(i) : next.add(i);
+      return next;
+    });
+  };
+
   const handleSend = async () => {
-    // validate all messages
-    for (let i = 0; i < state.messages.length; i++) {
+    const enabledIdxs = state.messages.map((_, i) => i).filter(i => !disabledMsgs.has(i));
+    if (!enabledIdxs.length) { addToast('No hay mensajes seleccionados para enviar', 'err'); return; }
+    // validate enabled messages
+    for (const i of enabledIdxs) {
       const nodes = state.messages[i];
       if (!nodes.length) {
         const msg = t('err_empty_msg', i + 1);
@@ -537,13 +553,14 @@ function BuilderCore() {
     }
 
     setSending(true);
-    const total = state.messages.length;
+    const total = enabledIdxs.length;
     const sentIds: string[] = [];
 
     try {
-      for (let i = 0; i < state.messages.length; i++) {
+      for (let n = 0; n < enabledIdxs.length; n++) {
+        const i = enabledIdxs[n];
         const nodes = state.messages[i];
-        setStatus({ msg: `Enviando${total > 1 ? ` Msg ${i + 1}/${total}` : ''}…`, kind: 'info' });
+        setStatus({ msg: `Enviando${total > 1 ? ` Msg ${i + 1}/${state.messages.length}` : ''}…`, kind: 'info' });
         let res: Response;
 
         if (sendMode === 'webhook') {
@@ -909,19 +926,36 @@ function BuilderCore() {
           <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #1e1f22', background: '#2b2d31' }}>
             <span style={{ fontSize: 10, color: '#4e5058', fontWeight: 700, textTransform: 'uppercase', padding: '0 8px', letterSpacing: '.05em', flexShrink: 0 }}>{t('messages_label')}</span>
             <div style={{ display: 'flex', flex: 1, gap: 2, overflow: 'auto', padding: '4px 4px 0' }}>
-              {state.messages.map((m, i) => (
-                <button key={i}
-                  onClick={() => { setActiveMsg(i); setSelected(null); }}
-                  style={{
-                    padding: '4px 12px', fontSize: 11, borderRadius: '4px 4px 0 0', border: 'none', cursor: 'pointer', fontWeight: 600,
-                    background: i === safeMsgIdx ? '#313338' : 'rgba(255,255,255,.04)',
-                    color: i === safeMsgIdx ? '#dbdee1' : '#72767d',
-                    whiteSpace: 'nowrap', flexShrink: 0,
-                  }}>
-                  {`Msg ${i + 1}`}
-                  {m.length > 0 && <span style={{ marginLeft: 5, fontSize: 9, opacity: .6 }}>{m.length}</span>}
-                </button>
-              ))}
+              {state.messages.map((m, i) => {
+                const disabled = disabledMsgs.has(i);
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'stretch', flexShrink: 0 }}>
+                    <button
+                      onClick={() => { setActiveMsg(i); setSelected(null); }}
+                      style={{
+                        padding: '4px 8px 4px 10px', fontSize: 11, borderRadius: '4px 4px 0 0', border: 'none', cursor: 'pointer', fontWeight: 600,
+                        background: i === safeMsgIdx ? '#313338' : 'rgba(255,255,255,.04)',
+                        color: disabled ? '#3f4147' : i === safeMsgIdx ? '#dbdee1' : '#72767d',
+                        whiteSpace: 'nowrap', textDecoration: disabled ? 'line-through' : 'none',
+                      }}>
+                      {`Msg ${i + 1}`}
+                      {m.length > 0 && <span style={{ marginLeft: 5, fontSize: 9, opacity: .6 }}>{m.length}</span>}
+                    </button>
+                    {state.messages.length > 1 && (
+                      <button
+                        title={disabled ? 'Incluir en envío' : 'Excluir del envío'}
+                        onClick={e => { e.stopPropagation(); toggleDisabledMsg(i); }}
+                        style={{
+                          padding: '0 5px', fontSize: 9, border: 'none', cursor: 'pointer', fontWeight: 700,
+                          background: i === safeMsgIdx ? '#313338' : 'rgba(255,255,255,.04)',
+                          color: disabled ? '#ed4245' : '#57f287', borderRadius: '0 4px 0 0',
+                        }}>
+                        {disabled ? '✕' : '✓'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
             <div style={{ display: 'flex', gap: 2, padding: '0 4px', flexShrink: 0 }}>
               <button onClick={addMessage} title={t('add_message_btn')}

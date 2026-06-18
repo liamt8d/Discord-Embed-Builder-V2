@@ -524,8 +524,8 @@ function EmbedItem({embed,onChange,onRemove,onDup,onMoveUp,onMoveDown,canUp,canD
 
 // ── Message section ───────────────────────────────────────────────────────────
 
-function MessageSection({msg,onChange,onRemove,onDup,index,total,forceCollapse}:{
-  msg:DiscordMessage;onChange:(p:Partial<DiscordMessage>)=>void;onRemove:()=>void;onDup:()=>void;index:number;total:number;forceCollapse?:boolean;
+function MessageSection({msg,onChange,onRemove,onDup,index,total,forceCollapse,disabled,onToggleDisabled}:{
+  msg:DiscordMessage;onChange:(p:Partial<DiscordMessage>)=>void;onRemove:()=>void;onDup:()=>void;index:number;total:number;forceCollapse?:boolean;disabled?:boolean;onToggleDisabled?:()=>void;
 }){
   const { t } = useT();
   const [open,setOpen]=useState(true);
@@ -555,14 +555,19 @@ function MessageSection({msg,onChange,onRemove,onDup,index,total,forceCollapse}:
   };
 
   return(
-    <div style={{border:'1px solid #383a40',borderRadius:6,marginBottom:8,overflow:'hidden'}}>
+    <div style={{border:`1px solid ${disabled?'#2a2b30':'#383a40'}`,borderRadius:6,marginBottom:8,overflow:'hidden',opacity:disabled?.5:1}}>
       <div style={{display:'flex',alignItems:'center',gap:6,padding:'9px 12px',background:'#25262b',cursor:'pointer'}}onClick={()=>setOpen(o=>!o)}>
         <span style={{color:'#5c5f66',fontSize:10,width:14,flexShrink:0}}>{effectiveOpen?'▾':'▸'}</span>
         <div style={{flex:1,minWidth:0}}>
-          <span style={{fontSize:12,fontWeight:700,color:'#b5bac1'}}>{t('eb_message',index+1)}</span>
-          {preview&&<span style={{fontSize:11,color:'#4e5058',marginLeft:6,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160,display:'inline-block',verticalAlign:'bottom'}}>— {preview}</span>}
+          <span style={{fontSize:12,fontWeight:700,color:disabled?'#3f4147':'#b5bac1',textDecoration:disabled?'line-through':'none'}}>{t('eb_message',index+1)}</span>
+          {preview&&!disabled&&<span style={{fontSize:11,color:'#4e5058',marginLeft:6,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160,display:'inline-block',verticalAlign:'bottom'}}>— {preview}</span>}
         </div>
         <div style={{display:'flex',gap:2}}onClick={e=>e.stopPropagation()}>
+          {total>1&&onToggleDisabled&&(
+            <button style={{...IB,color:disabled?'#ed4245':'#57f287',fontSize:11,fontWeight:700}}onClick={onToggleDisabled}title={disabled?'Incluir en envío':'Excluir del envío'}>
+              {disabled?'✕':'✓'}
+            </button>
+          )}
           <button style={{...IB,color:'#72767d',fontSize:11}}onClick={onDup}title="Duplicar mensaje">⧉</button>
           {total>1&&<button style={{...IB,color:'#ed4245',fontSize:11}}onClick={()=>{if(confirm(t('eb_confirm_msg')))onRemove();}}><i className="fi fi-sr-trash"style={{fontSize:10}}/></button>}
         </div>
@@ -674,6 +679,7 @@ function EmbedBuilderCore(){
   const [templatesOpen,setTemplatesOpen]=useState(false);
   const [importOpen,setImportOpen]=useState(false);
   const [compactAll,setCompactAll]=useState(false);
+  const [disabledMsgs,setDisabledMsgs]=useState<Set<string>>(new Set());
   const [diffOpen,setDiffOpen]=useState(false);
   const [whAppearanceOpen,setWhAppearanceOpen]=useState(false);
   const [webhookFetchedInfo,setWebhookFetchedInfo]=useState<{username:string;avatar:string|null}|null>(null);
@@ -805,8 +811,12 @@ function EmbedBuilderCore(){
 
   const getErr=(data:any)=>{let h='';if(data.errors){const m=JSON.stringify(data.errors).match(/"message":"([^"]+)"/);if(m)h=` — ${m[1]}`;}return`Error ${data.status??''}${data.code?` (${data.code})`:''}${data.message?': '+data.message:''}${h}`;};
 
+  const toggleDisabledMsg=(id:string)=>setDisabledMsgs(prev=>{const next=new Set(prev);next.has(id)?next.delete(id):next.add(id);return next;});
+
   const handleSend=async()=>{
-    const msgs=state.messages.map(m=>serializeMessage(m,whName,whAvatar));
+    const enabledMsgs=state.messages.filter(m=>!disabledMsgs.has(m._id));
+    if(!enabledMsgs.length){addToast('No hay mensajes seleccionados para enviar','err');return;}
+    const msgs=enabledMsgs.map(m=>serializeMessage(m,whName,whAvatar));
     if(msgs.every(m=>!m.content&&(!m.embeds||!m.embeds.length))){addToast(t('eb_no_content'),'err');return;}
     if(messageId&&msgs.length>1){addToast(t('eb_only_one_edit'),'warn');return;}
     setSending(true);setStatus({msg:'…',kind:'info'});let ok=0;
@@ -1021,6 +1031,8 @@ function EmbedBuilderCore(){
             {state.messages.map((m,mi)=>(
               <MessageSection key={m._id}msg={m}index={mi}total={state.messages.length}
                 forceCollapse={compactAll}
+                disabled={disabledMsgs.has(m._id)}
+                onToggleDisabled={()=>toggleDisabledMsg(m._id)}
                 onChange={p=>updateMsg(m._id,p)}
                 onRemove={()=>removeMsg(m._id)}
                 onDup={()=>dupMsg(m._id)}
