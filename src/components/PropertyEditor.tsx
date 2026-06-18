@@ -31,8 +31,8 @@ function TextEditor({ node, onChange }: { node: any; onChange: (p: any) => void 
     <div className="props-section">
       <Field label={t('pe_content')}>
         <FormatToolbar targetRef={taRef} onChange={v => onChange({ content: v })} />
-        <textarea ref={taRef} value={node.content ?? ''} rows={6} onChange={e => onChange({ content: e.target.value })}
-          style={over ? { borderColor: '#ed4245' } : warn ? { borderColor: '#fcc419' } : undefined} />
+        <textarea ref={taRef} value={node.content ?? ''} rows={12} onChange={e => onChange({ content: e.target.value })}
+          style={{ resize: 'vertical', minHeight: 160, ...(over ? { borderColor: '#ed4245' } : warn ? { borderColor: '#fcc419' } : {}) }} />
         <div style={{ textAlign: 'right', fontSize: 11, marginTop: 3,
           color: over ? '#ed4245' : warn ? '#fcc419' : '#5c5f66' }}>
           {len} / {TEXT_LIMIT}{over ? ' !' : ''}

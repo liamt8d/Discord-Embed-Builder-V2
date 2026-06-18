@@ -370,7 +370,7 @@ function Tex({label,value,onChange,placeholder,rows=3,maxLen}:{label?:string;val
         {label&&<label style={LS}>{label}</label>}
         {maxLen&&<span style={{fontSize:10,color:over?'#ed4245':value.length>maxLen*0.85?'#fcc419':'#4e5058'}}>{value.length}/{maxLen}</span>}
       </div>}
-      <textarea value={value}onChange={e=>onChange(e.target.value)}placeholder={placeholder}rows={rows}style={{...IS,resize:'vertical',borderColor:over?'#ed4245':undefined}}/>
+      <textarea value={value}onChange={e=>onChange(e.target.value)}placeholder={placeholder}rows={rows}style={{...IS,resize:'vertical',minHeight:60,borderColor:over?'#ed4245':undefined}}/>
     </div>
   );
 }
@@ -459,7 +459,7 @@ function EmbedItem({embed,onChange,onRemove,onDup,onMoveUp,onMoveDown,canUp,canD
           <Inp label={t('eb_title_url')}value={embed.url}onChange={v=>onChange({url:v})}placeholder={t('eb_title_url_hint')}/>
 
           {/* Description */}
-          <Tex label={t('eb_description')}value={embed.description}onChange={v=>onChange({description:v})}placeholder={t('eb_desc_ph')}rows={5}maxLen={4096}/>
+          <Tex label={t('eb_description')}value={embed.description}onChange={v=>onChange({description:v})}placeholder={t('eb_desc_ph')}rows={8}maxLen={4096}/>
 
           {/* Fields */}
           <Collapsible label={t('eb_fields',embed.fields.length)}icon="th-list"defaultOpen={embed.fields.length>0}>
@@ -578,8 +578,8 @@ function MessageSection({msg,onChange,onRemove,onDup,index,total,forceCollapse}:
             </div>
             <FormatToolbar targetRef={contentRef} onChange={v=>onChange({content:v})}/>
             <textarea ref={contentRef} value={msg.content}onChange={e=>onChange({content:e.target.value})}
-              placeholder={t('eb_content_ph')}rows={3}
-              style={{...IS,resize:'vertical',borderColor:len>LIMIT?'#ed4245':undefined}}/>
+              placeholder={t('eb_content_ph')}rows={6}
+              style={{...IS,resize:'vertical',minHeight:100,borderColor:len>LIMIT?'#ed4245':undefined}}/>
           </div>
 
           {/* Embed list */}
